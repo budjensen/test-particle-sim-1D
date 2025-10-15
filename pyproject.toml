@@ -1,7 +1,34 @@
 [project]
 name = "test-particle-sim-1d"
 version = "0.1.0"
-description = "Add your description here"
+description = "A 1D test particle tool for plasma applications"
+authors = [
+    { name = "budjensen", email = "bjensen@princeton.edu" },
+    { name = "lkadz" },
+    { name = "SunnyNyhus" },
+]
 readme = "README.md"
-requires-python = ">=3.12"
-dependencies = []
+requires-python = ">=3.11"
+dependencies = [
+    "numpy",
+]
+
+[dependency-groups]
+test = [
+    "pytest",
+]
+dev = [
+    { include-group = "test" },
+    "nox",
+]
+docs = [
+    "furo",
+    "myst_parser",
+    "sphinx",
+    "sphinx-markdown-builder",
+    "sphinx_copybutton",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
