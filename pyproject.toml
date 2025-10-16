@@ -4,7 +4,7 @@ version = "0.1.0"
 description = "A 1D test particle tool for plasma applications"
 authors = [
     { name = "budjensen", email = "bjensen@princeton.edu" },
-    { name = "lkadz" },
+    { name = "lkadz", email = "leekadz@princeton.edu" },
     { name = "SunnyNyhus" },
 ]
 readme = "README.md"
