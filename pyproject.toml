@@ -4,4 +4,4 @@ version = "0.1.0"
 description = "1D Test Particle Simulator for APC 524 Term Project"
 readme = "README.md"
 requires-python = ">=3.12"
-dependencies = []
+dependencies = ["numpy>=1.26"]
