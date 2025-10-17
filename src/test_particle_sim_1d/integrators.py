@@ -9,7 +9,7 @@ The electric and magnetic fields depend only on z.
 This module advances particle positions and velocities according to the
 Lorentz force law:
 
-    m dv/dt = q (E + v × B)
+    m dv/dt = q (E + v x B)
     dz/dt = v_z
 
 The Boris algorithm is a second-order, time-centered scheme that splits the
@@ -23,6 +23,8 @@ References:
     Proceedings of the Fourth Conference on Numerical Simulation of Plasmas, 1970.
     Qin, H. et al. (2013). "Why is Boris algorithm so good?"
 """
+
+from __future__ import annotations
 
 import numpy as np
 
@@ -55,7 +57,7 @@ def boris_1d3v_z(
     """
     q_over_m = (q / m)[:, None]
 
-    for step in range(n_steps):
+    for _ in range(n_steps):
         # 1. Fields at current positions
         E = E_func(z)
         B = B_func(z)
