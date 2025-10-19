@@ -8,7 +8,9 @@ properties of particles belonging to one species (e.g., electrons or ions).
 
 # import statements
 from __future__ import annotations
+
 import numpy as np
+
 
 # species class definition
 class Species:
@@ -51,21 +53,21 @@ class Species:
     ) -> None:
         """Initialize empty species container"""
         # store physical constants and identifiers
-        self.q = float(q)   # float
-        self.m = float(m)   # float
-        self.name = name    # string
+        self.q = float(q)  # float
+        self.m = float(m)  # float
+        self.name = name  # string
         self.dtype = dtype  # floating point type
 
         self.capacity = int(capacity)
         self.N = 0  # number of active particles
 
         # allocate SoA storage (1D arrays for 1D sim); preallocate if capacity > 0
-        self.x  = np.zeros(self.capacity, dtype=self.dtype)
+        self.x = np.zeros(self.capacity, dtype=self.dtype)
         self.vx = np.zeros(self.capacity, dtype=self.dtype)
 
         # allocate auxiliary bookkeeping arrays
-        self.weight = np.ones(self.capacity, dtype=self.dtype) # weighting factors
-        self.alive  = np.ones(self.capacity, dtype=bool)       # true = active
+        self.weight = np.ones(self.capacity, dtype=self.dtype)  # weighting factors
+        self.alive = np.ones(self.capacity, dtype=bool)  # true = active
 
     # public methods
     def add_particles(self, x_init: np.ndarray, vx_init: np.ndarray) -> None:
@@ -101,8 +103,8 @@ class Species:
         self.vx[start:end] = np.asarray(vx_init, dtype=self.dtype)
 
         # initialize other arrays for new particles
-        self.weight[start:end] = 1.0   # default weight
-        self.alive[start:end] = True   # mark as active
+        self.weight[start:end] = 1.0  # default weight
+        self.alive[start:end] = True  # mark as active
 
         # update particle count
         self.N = end
@@ -129,7 +131,7 @@ class Species:
         seed : int or None, optional
             random seed for reproducibility
         """
-        # initialize random number generator (NumPy’s modern API)
+        # initialize random number generator (NumPy's modern API)
         rng = np.random.default_rng(seed)
 
         # generate uniformly spaced random positions
@@ -146,14 +148,14 @@ class Species:
 
     # internal helpers
     def _ensure_capacity(self, needed: int) -> None:
-        """ Expand storage arrays if needed """
+        """Expand storage arrays if needed"""
 
         # guard pattern: early return if no expansion needed
         if needed <= self.capacity:
             return
 
         # compute new capacity
-        new_cap = max(needed, max(1, int(self.capacity * 2)))
+        new_cap = max(needed, 1, int(self.capacity * 2))
 
         # grow all SoA arrays to the same new size
         self.x = self._grow(self.x, new_cap)
@@ -201,7 +203,7 @@ class Species:
         out[:n_old] = arr
 
         # fill the remainder with a sensible default value
-        if dtype == bool:
+        if dtype is bool:
             out[n_old:] = bool(fill)
         else:
             out[n_old:] = fill

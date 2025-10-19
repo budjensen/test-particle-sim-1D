@@ -1,6 +1,10 @@
 # tests/test_species.py
+from __future__ import annotations
+
 import numpy as np
+
 from test_particle_sim_1d.particles import Species
+
 
 def test_species_initialization():
     """Test that a species object can be created and is initially empty"""
