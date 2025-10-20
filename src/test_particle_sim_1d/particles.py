@@ -64,13 +64,14 @@ class Species:
         # allocate SoA storage (1D arrays for 1D sim); preallocate if capacity > 0
         self.x = np.zeros(self.capacity, dtype=self.dtype)
         self.vx = np.zeros(self.capacity, dtype=self.dtype)
-
+self.vy = np.zeros(self.capacity, dtype=self.dtype)
+self.vz = np.zeros(self.capacity, dtype=self.dtype)
         # allocate auxiliary bookkeeping arrays
         self.weight = np.ones(self.capacity, dtype=self.dtype)  # weighting factors
         self.alive = np.ones(self.capacity, dtype=bool)  # true = active
 
     # public methods
-    def add_particles(self, x_init: np.ndarray, vx_init: np.ndarray) -> None:
+    def add_particles(self, z_init: np.ndarray, v_init: np.ndarray) -> None:
         """
         Append new particles to this species
 
@@ -99,8 +100,10 @@ class Species:
 
         # copy incoming values into array slices
         # np.asarray ensures consistent dtype
-        self.x[start:end] = np.asarray(x_init, dtype=self.dtype)
-        self.vx[start:end] = np.asarray(vx_init, dtype=self.dtype)
+        self.z[start:end] = np.asarray(z_init, dtype=self.dtype)
+        self.vx[start:end] = v_init[:, 0]
+        self.vy[start:end] = v_init[:, 1]
+        self.vz[start:end] = v_init[:, 2]
 
         # initialize other arrays for new particles
         self.weight[start:end] = 1.0  # default weight
@@ -112,8 +115,8 @@ class Species:
     def initialize_uniform(
         self,
         n: int,
-        x_min: float,
-        x_max: float,
+        z_min: float,
+        z_max: float,
         v0: float = 0.0,
         seed: int | None = None,
     ) -> None:
@@ -135,13 +138,16 @@ class Species:
         rng = np.random.default_rng(seed)
 
         # generate uniformly spaced random positions
-        x_new = rng.uniform(x_min, x_max, size=n).astype(self.dtype)
+        z_new = rng.uniform(z_min, z_max, size=n).astype(self.dtype)
 
         # all velocities start with the same value v0
-        vx_new = np.full(n, v0, dtype=self.dtype)
+        if v0 is None:
+            v_new = np.zeros((n, 3), dtype=self.dtype)
+       else:
+            v_new = np.tile(v0, (n, 1))
 
         # reuse add_particles to avoid repeating logic (DRY principle)
-        self.add_particles(x_new, vx_new)
+        self.add_particles(z_new, v_new)
 
     def __len__(self) -> int:
         return self.N
@@ -158,8 +164,10 @@ class Species:
         new_cap = max(needed, 1, int(self.capacity * 2))
 
         # grow all SoA arrays to the same new size
-        self.x = self._grow(self.x, new_cap)
+        self.z = self._grow(self.z, new_cap)
         self.vx = self._grow(self.vx, new_cap)
+        self.vy = self._grow(self.vy, new_cap)
+        self.vz = self._grow(self.vz, new_cap)
         self.weight = self._grow(self.weight, new_cap, fill=1.0)
         self.alive = self._grow(self.alive, new_cap, fill=True, array_dtype=bool)
 
