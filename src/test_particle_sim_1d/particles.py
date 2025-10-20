@@ -34,7 +34,7 @@ class Species:
         allocated length of all arrays (number of available slots)
     N : int
         current number of active particles
-    x, vx : np.ndarray
+    z, vx : np.ndarray
         arrays for position (m) and velocity (m/s) (1D simulation)
     weight : np.ndarray
         particle weights (used for scaling particle contribution to charge density)
@@ -62,10 +62,11 @@ class Species:
         self.N = 0  # number of active particles
 
         # allocate SoA storage (1D arrays for 1D sim); preallocate if capacity > 0
-        self.x = np.zeros(self.capacity, dtype=self.dtype)
+        self.z = np.zeros(self.capacity, dtype=self.dtype)
         self.vx = np.zeros(self.capacity, dtype=self.dtype)
-self.vy = np.zeros(self.capacity, dtype=self.dtype)
-self.vz = np.zeros(self.capacity, dtype=self.dtype)
+        self.vy = np.zeros(self.capacity, dtype=self.dtype)
+        self.vz = np.zeros(self.capacity, dtype=self.dtype)
+
         # allocate auxiliary bookkeeping arrays
         self.weight = np.ones(self.capacity, dtype=self.dtype)  # weighting factors
         self.alive = np.ones(self.capacity, dtype=bool)  # true = active
@@ -77,7 +78,7 @@ self.vz = np.zeros(self.capacity, dtype=self.dtype)
 
         Parameters
         ----------
-        x_init : np.ndarray
+        z_init : np.ndarray
             Initial positions of new particles
         vx_init : np.ndarray
             Initial velocities of new particles
@@ -89,7 +90,7 @@ self.vz = np.zeros(self.capacity, dtype=self.dtype)
         """
 
         # number of new particles being added
-        n_new = len(x_init)
+        n_new = len(z_init)
 
         # check if enough space; if not, allocate more
         self._ensure_capacity(self.N + n_new)
@@ -143,7 +144,7 @@ self.vz = np.zeros(self.capacity, dtype=self.dtype)
         # all velocities start with the same value v0
         if v0 is None:
             v_new = np.zeros((n, 3), dtype=self.dtype)
-       else:
+        else:
             v_new = np.tile(v0, (n, 1))
 
         # reuse add_particles to avoid repeating logic (DRY principle)

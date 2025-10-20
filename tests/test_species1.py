@@ -24,7 +24,7 @@ def test_add_particles_increases_count():
     """Test adding new particles updates arrays correctly"""
     s = Species(q=-1.602e-19, m=9.109e-31)
     z_init = np.array([0.1, 0.2, 0.3])
-    v_init = np.array([[1.0, 0.0, 0.0],[0.0, 1.0, 0.0],[0.0, 0.0, 1.0]])
+    v_init = np.array([[1.0, 0.0, 0.0], [0.0, 1.0, 0.0], [0.0, 0.0, 1.0]])
 
     s.add_particles(z_init, v_init)
 
