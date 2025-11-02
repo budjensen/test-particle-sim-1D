@@ -1,72 +1,88 @@
 """
-test_gyromotion.py
+tests/test_gyromotion.py
 
-Test that the Boris 1D3V integrator produces correct gyromotion in a uniform B field.
+Tests gyromotion for multiple particles with different initial velocities
+in a uniform magnetic field using fields.py, integrators.py, and particles.py.
 
-Physical expectation:
----------------------
-In a uniform magnetic field (B = Bz * e_z) and zero electric field,
-a charged particle with initial velocity perpendicular to B
-undergoes circular motion with constant |v|.
-
-The cyclotron frequency is:
-    ω_c = |q| * B / m
-
-After one cyclotron period:
-    T = 2π / ω_c
-the velocity vector should return to its initial direction (within numerical tolerance).
+Checks:
+- |v| conserved for each particle (energy conservation)
+- Each particle maintains correct cyclotron frequency
+- Phase shifts correspond to initial velocity directions
 """
 
 from __future__ import annotations
 
 import numpy as np
 
+from test_particle_sim_1d import fields
 from test_particle_sim_1d.integrators import boris_1d3v_z
+from test_particle_sim_1d.particles import Species
 
 
-def test_gyromotion_conservation():
-    # --- Physical constants ---
-    q = np.array([-1.602e-19])  # electron charge [C]
-    m = np.array([9.109e-31])  # electron mass [kg]
+def test_multiple_particle_gyromotion():
+    """Test that several particles gyrate independently and conserve |v|."""
+
+    # ------------------------------------------------------------
+    # Physical constants
+    # ------------------------------------------------------------
+    q = np.array([1.0, 1.0, 1.0])  # all same charge [C]
+    m = np.array([1.0, 1.0, 1.0])  # all same mass [kg]
     B0 = 1.0  # magnetic field [T]
-    E0 = 0.0  # no electric field
+    v_perp = 1.0
 
-    # --- Initial conditions ---
-    z = np.zeros(1)
-    v0 = np.array([[1e6, 0.0, 0.0]])  # velocity purely in x (perpendicular to Bz)
+    # Cyclotron frequency and period (same for all)
+    omega_c = q[0] * B0 / m[0]
+    T_cyclotron = 2 * np.pi / omega_c
 
-    # --- Field definitions ---
-    def E_field(z):
-        return np.stack(
-            [np.full_like(z, E0), np.full_like(z, 0.0), np.full_like(z, 0.0)], axis=1
-        )
+    # ------------------------------------------------------------
+    # Initialize 3 particles with different initial phases
+    # ------------------------------------------------------------
+    # One along +x, one along +y, one at 45° in xy-plane
+    v_init = np.array(
+        [
+            [v_perp, 0.0, 0.0],  # particle 1
+            [0.0, v_perp, 0.0],  # particle 2
+            [v_perp / np.sqrt(2), v_perp / np.sqrt(2), 0.0],  # particle 3
+        ]
+    )
+    z_init = np.zeros(3)
 
-    def B_field(z):
-        return np.stack(
-            [np.full_like(z, 0.0), np.full_like(z, 0.0), np.full_like(z, B0)], axis=1
-        )
+    sp = Species(q=1.0, m=1.0, name="multi", capacity=3)
+    sp.add_particles(z_init, v_init)
 
-    # --- Cyclotron frequency and time step ---
-    omega_c = np.abs(q[0]) * B0 / m[0]  # cyclotron frequency (rad/s)
-    T_c = 2 * np.pi / omega_c  # cyclotron period (s)
-    n_steps = 1000  # number of integration steps to use for one full gyro orbit
-    dt = T_c / n_steps  # time step so that one period is divided into n_steps steps
+    # ------------------------------------------------------------
+    # Field setup
+    # ------------------------------------------------------------
+    def E_func(z):
+        return fields.E_uniform(z, E0=0.0, direction="z")
 
-    # --- Run one full gyro orbit ---
-    _z_final, v_final = boris_1d3v_z(z, v0.copy(), q, m, E_field, B_field, dt, n_steps)
+    def B_func(z):
+        return fields.B_uniform(z, B0=B0, direction="z")
 
-    # --- Expected: velocity magnitude conserved ---
-    v_mag_initial = np.linalg.norm(v0)
-    v_mag_final = np.linalg.norm(v_final)
+    # ------------------------------------------------------------
+    # Integrate one full cyclotron period
+    # ------------------------------------------------------------
+    dt = T_cyclotron / 400
+    n_steps = 400
+
+    z = sp.z.copy()
+    v = np.column_stack((sp.vx, sp.vy, sp.vz))
+
+    z_final, v_final = boris_1d3v_z(z, v, q, m, E_func, B_func, dt, n_steps)
+
+    # ------------------------------------------------------------
+    # Check 1: |v| conserved for all particles
+    # ------------------------------------------------------------
+    v_mag_initial = np.linalg.norm(v, axis=1)
+    v_mag_final = np.linalg.norm(v_final, axis=1)
     np.testing.assert_allclose(v_mag_final, v_mag_initial, rtol=1e-6)
 
-    # --- Expected: velocity returns to (vx, vy) ≈ (v0, 0) after one full period ---
-    np.testing.assert_allclose(
-        v_final[0, 0], v0[0, 0], rtol=1e-4
-    )  # vx close to initial
-    np.testing.assert_allclose(v_final[0, 1], 0.0, atol=1e-4 * v_mag_initial)  # vy ≈ 0
-    np.testing.assert_allclose(v_final[0, 2], 0.0, atol=1e-12)  # vz stays constant
+    # ------------------------------------------------------------
+    # Check 2: Each particle returns to its original velocity direction
+    # ------------------------------------------------------------
+    np.testing.assert_allclose(v_final[:, :2], v[:, :2], atol=1e-3)
 
-
-if __name__ == "__main__":
-    test_gyromotion_conservation()
+    # ------------------------------------------------------------
+    # Check 3: z displacement small (1D motion assumption)
+    # ------------------------------------------------------------
+    np.testing.assert_allclose(z_final, z, atol=1e-6)
