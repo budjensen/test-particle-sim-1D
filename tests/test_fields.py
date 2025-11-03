@@ -11,13 +11,15 @@ Comprehensive unit tests for fields.py.
 """
 
 from __future__ import annotations
-import numpy as np
-from test_particle_sim_1d import fields
 
+import numpy as np
+
+from test_particle_sim_1d import fields
 
 # ----------------------------------------------------------------------
 # 1. Analytic equivalence for B_mirror
 # ----------------------------------------------------------------------
+
 
 def test_B_mirror_matches_analytic():
     """Numerical B_mirror matches analytic formula exactly."""
@@ -31,6 +33,7 @@ def test_B_mirror_matches_analytic():
 # ----------------------------------------------------------------------
 # 2. Derivative (gradient) consistency
 # ----------------------------------------------------------------------
+
 
 def test_B_mirror_derivative_consistency():
     """Numerical dBz/dz matches analytic derivative of B_mirror."""
@@ -49,19 +52,21 @@ def test_B_mirror_derivative_consistency():
 # 3. Symmetry about z = 0
 # ----------------------------------------------------------------------
 
+
 def test_B_mirror_symmetry():
     """B_mirror field must be perfectly symmetric: Bz(z) = Bz(-z)."""
     z = np.linspace(-0.05, 0.05, 1001)
     Bz = fields.B_mirror(z, B0=1.0, z_mirror=0.05)[:, 2]
 
-    left = Bz[: len(Bz)//2]
-    right = Bz[len(Bz)//2 + 1 :][::-1]
+    left = Bz[: len(Bz) // 2]
+    right = Bz[len(Bz) // 2 + 1 :][::-1]
     np.testing.assert_allclose(left, right, rtol=1e-10)
 
 
 # ----------------------------------------------------------------------
 # 4. Parameter-scaling behavior
 # ----------------------------------------------------------------------
+
 
 def test_B_mirror_scales_with_B0():
     """Scaling B0 should scale the entire field linearly."""
@@ -79,7 +84,7 @@ def test_B_mirror_scales_with_zmirror():
     B2 = fields.B_mirror(z, B0=1.0, z_mirror=L2)[:, 2]
 
     # Both fields equal at z=0
-    np.testing.assert_allclose(B1[len(z)//2], B2[len(z)//2], atol=1e-3)
+    np.testing.assert_allclose(B1[len(z) // 2], B2[len(z) // 2], atol=1e-3)
     # At edges, smaller L (stronger mirror) should give larger Bz
     assert B1[-1] > B2[-1]
 
@@ -88,11 +93,12 @@ def test_B_mirror_scales_with_zmirror():
 # 5. Direction tests for uniform fields
 # ----------------------------------------------------------------------
 
+
 def test_uniform_field_directions():
     """Uniform fields populate the correct axis only."""
     z = np.linspace(0, 1, 5)
     for func in [fields.E_uniform, fields.B_uniform]:
-        for direction, idx in zip("xyz", [0, 1, 2]):
+        for direction, idx in zip("xyz", [0, 1, 2], strict=False):
             F = func(z, 5.0, direction)
             assert F.shape == (5, 3)
             assert np.allclose(F[:, idx], 5.0)
@@ -105,6 +111,7 @@ def test_uniform_field_directions():
 # 6. Vector magnitude checks
 # ----------------------------------------------------------------------
 
+
 def test_uniform_field_magnitude_constant():
     """Uniform field should have constant magnitude everywhere."""
     z = np.linspace(0, 1, 5)
@@ -116,6 +123,7 @@ def test_uniform_field_magnitude_constant():
 # ----------------------------------------------------------------------
 # 7. Input type robustness
 # ----------------------------------------------------------------------
+
 
 def test_accepts_python_lists():
     """Ensure field functions accept Python lists and return NumPy arrays."""
@@ -131,6 +139,7 @@ def test_accepts_python_lists():
 # ----------------------------------------------------------------------
 # 8. Edge case: empty input
 # ----------------------------------------------------------------------
+
 
 def test_empty_input_returns_empty():
     """Functions should safely handle empty arrays."""
