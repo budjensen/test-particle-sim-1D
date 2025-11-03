@@ -7,7 +7,9 @@ is conserved in the drift frame.
 """
 
 from __future__ import annotations
+
 import numpy as np
+
 from test_particle_sim_1d import fields
 from test_particle_sim_1d.integrators import boris_1d3v_z
 from test_particle_sim_1d.particles import Species
@@ -16,15 +18,18 @@ from test_particle_sim_1d.particles import Species
 def test_exb_drift_from_rest():
     q, m = 1.0, 1.0
     E0, B0 = 0.5, 1.0
-    v_d_expected = -E0 / B0  # E (+x) × B (+z) = -ŷ
+    v_d_expected = -E0 / B0  # E (+x) x B (+z) = -ŷ
 
     # Create species (start at rest)
     sp = Species(q=q, m=m, capacity=1)
     sp.add_particles(np.array([0.0]), np.array([[0.0, 0.0, 0.0]]))
 
     # Define fields
-    E_func = lambda z: fields.E_uniform(z, E0=E0, direction="x")
-    B_func = lambda z: fields.B_uniform(z, B0=B0, direction="z")
+    def E_func(z):
+        return fields.E_uniform(z, E0=E0, direction="x")
+
+    def B_func(z):
+        return fields.B_uniform(z, B0=B0, direction="z")
 
     # Integration setup
     omega_c = q * B0 / m
@@ -33,9 +38,17 @@ def test_exb_drift_from_rest():
     n_steps = int(20 * 2 * np.pi / (omega_c * dt))  # ~20 gyroperiods
 
     z, v = sp.z.copy(), np.column_stack((sp.vx, sp.vy, sp.vz))
-    _, _, v_hist = boris_1d3v_z(z, v, np.array([q]), np.array([m]),
-                                E_func, B_func, dt, n_steps,
-                                record_history=True)
+    _, _, v_hist = boris_1d3v_z(
+        z,
+        v,
+        np.array([q]),
+        np.array([m]),
+        E_func,
+        B_func,
+        dt,
+        n_steps,
+        record_history=True,
+    )
 
     # Ignore transients (first few gyroperiods)
     n_transient = n_steps // 2
