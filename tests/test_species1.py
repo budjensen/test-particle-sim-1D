@@ -29,7 +29,7 @@ def test_add_particles_increases_count():
     s.add_particles(z_init, v_init)
 
     assert len(s) == 3
-    np.testing.assert_allclose(s.x[:3], z_init)
+    np.testing.assert_allclose(s.z[:3], z_init)
     np.testing.assert_allclose(s.vx[:3], v_init[:, 0])
     np.testing.assert_allclose(s.vy[:3], v_init[:, 1])
     np.testing.assert_allclose(s.vz[:3], v_init[:, 2])
