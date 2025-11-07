@@ -18,10 +18,12 @@ electric and magnetic effects into separate half steps:
 - Magnetic rotation
 - Second half electric acceleration
 
-References:
-    J. P. Boris, "Relativistic Plasma Simulation—Optimization of a Hybrid Code",
-    Proceedings of the Fourth Conference on Numerical Simulation of Plasmas, 1970.
-    Qin, H. et al. (2013). "Why is Boris algorithm so good?"
+References
+----------
+J. P. Boris, "Relativistic Plasma Simulation—Optimization of a Hybrid Code",
+Proceedings of the Fourth Conference on Numerical Simulation of Plasmas, 1970.
+
+Qin, H. et al. (2013). "Why is Boris algorithm so good?"
 """
 
 from __future__ import annotations
@@ -38,26 +40,70 @@ def boris_1d3v_z(
     B_func,
     dt: float,
     n_steps: int,
+    record_history: bool = False,
 ):
     """
-    Advance 1D-in-z, 3D-in-velocity particles using the Boris algorithm.
+    Advance particles in 1D (z) with 3D velocity using the Boris pusher.
 
-    Args:
-        z (np.ndarray): Particle positions along z [m], shape (N,)
-        v (np.ndarray): Particle velocities [m/s], shape (N, 3)
-        q (np.ndarray): Charges [C], shape (N,)
-        m (np.ndarray): Masses [kg], shape (N,)
-        E_func (callable): E(z) -> (N, 3) electric field [V/m]
-        B_func (callable): B(z) -> (N, 3) magnetic field [T]
-        dt (float): Time step [s]
-        n_steps (int): Number of steps
+    This algorithm integrates the Lorentz force equation in a time-centered,
+    energy-conserving way. It applies a half-step electric acceleration,
+    a magnetic rotation, and a second half electric acceleration.
 
-    Returns:
-        tuple[np.ndarray, np.ndarray]: Final (z, v)
+    Parameters
+    ----------
+    z : np.ndarray
+        Particle positions along z-axis [m], shape (N,).
+    v : np.ndarray
+        Particle velocities [m/s], shape (N, 3).
+    q : np.ndarray
+        Particle charges [C], shape (N,).
+    m : np.ndarray
+        Particle masses [kg], shape (N,).
+    E_func : callable
+        Function that returns the electric field array for given z positions.
+        Must have signature ``E_func(z) -> np.ndarray`` of shape (N, 3).
+    B_func : callable
+        Function that returns the magnetic field array for given z positions.
+        Must have signature ``B_func(z) -> np.ndarray`` of shape (N, 3).
+    dt : float
+        Time step [s].
+    n_steps : int
+        Number of time steps to advance.
+    record_history : bool, optional
+        If True, store and return full velocity history as a 3D array of
+        shape (n_steps, N, 3). Default is False.
+
+    Returns
+    -------
+    tuple of np.ndarray
+        - z : np.ndarray
+            Final particle positions along z, shape (N,).
+        - v : np.ndarray
+            Final particle velocities, shape (N, 3).
+        - v_hist : np.ndarray, optional
+            Velocity history (n_steps, N, 3), only returned if
+            ``record_history=True``.
+
+    Raises
+    ------
+    ValueError
+        If z or v arrays have inconsistent shapes.
+    TypeError
+        If E_func or B_func do not return arrays of shape (N, 3).
+
+    Notes
+    -----
+    The Boris scheme is widely used in plasma and particle-in-cell simulations
+    due to its excellent long-term energy conservation and numerical stability.
+    It is exact for constant magnetic fields when E=0.
+
     """
     q_over_m = (q / m)[:, None]
 
-    for _ in range(n_steps):
+    if record_history:
+        v_hist = np.zeros((n_steps, len(v), 3), dtype=v.dtype)
+
+    for i in range(n_steps):
         # 1. Fields at current positions
         E = E_func(z)
         B = B_func(z)
@@ -79,4 +125,9 @@ def boris_1d3v_z(
         # 5. Position update using vz
         z += v[:, 2] * dt
 
+        if record_history:
+            v_hist[i] = v
+
+    if record_history:
+        return z, v, v_hist
     return z, v
