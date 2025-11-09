@@ -11,6 +11,86 @@ from __future__ import annotations
 
 import numpy as np
 
+from .initialization import constants
+
+
+def sample_maxwellian(
+    n: int,
+    mass: float,
+    temperature: dict[str, float],
+    mean_velocity: float = 0.0,
+    seed: int | None = None,
+    dtype=np.float64,
+) -> np.ndarray:
+    """
+    Generate velocities from a 3D Maxwellian (Gaussian) distribution.
+
+    Parameters
+    ----------
+    n : int
+        Number of samples to draw
+    mass : float
+        Particle mass [kg]
+    temperature : dict[str, float]
+        Particle temperature in Kelvin [K] or electronvolts [eV]
+    mean_velocity : float, optional
+        Mean drift velocity [m/s], default 0.0
+    seed : int or None, optional
+        RNG seed, default None
+    dtype : np.dtype
+        Floating-point type for output
+
+    Returns
+    -------
+    np.ndarray
+        Shape (n, 3) array of velocity components [vx, vy, vz]
+
+    Notes
+    -----
+    Since a Maxwellian distribution describes velocity magnitudes,
+    individual components are drawn from a Gaussian distribution with
+    standard deviation `sigma = sqrt(kB * T / m)`.
+
+    Examples
+    --------
+    >>> from test_particle_sim_1d import particles
+    >>> from test_particle_sim_1d.initialization import constants
+    >>> particles.sample_maxwellian(5, constants.m_e, {"eV": 10})
+    array([[-1666438.13197273, -1851032.27214499,  -682821.19994243],
+           [  439642.61815002,   335299.21954749,   956643.41448306],
+           [ 1587744.48058107, -3142078.12313282,     3247.0552664 ],
+           [ -366354.74190221, -2063735.35368675, -1601787.56530326],
+           [  941907.82864779, -3161259.01940836, -1160794.96240072]])
+    >>> particles.sample_maxwellian(5, constants.m_p, {"K": 300})
+    array([[ 2531.56061941,  -462.15468457,  2552.48093799],
+           [-2205.48337309,  -808.75778961,   933.82890129],
+           [ 1328.18252258,  -285.73035999,  -777.86873709],
+           [  858.85731176, -1099.90661809,  1598.40588797],
+           [   43.15730554, -1070.52229508,  1076.59602439]])
+
+    Raises
+    ------
+    TypeError
+        If temperature is not provided as a dictionary
+    ValueError
+        If temperature dictionary does not contain 'K' or 'eV' key.
+    """
+    rng = np.random.default_rng(seed)
+
+    if not isinstance(temperature, dict):
+        error_msg = "Temperature must be provided as a dictionary with 'K' or 'eV' key."
+        raise TypeError(error_msg)
+    if "eV" in temperature:
+        sigma = np.sqrt(constants.q_e * temperature["eV"] / mass)
+    elif "K" in temperature:
+        sigma = np.sqrt(constants.kb * temperature["K"] / mass)
+    else:
+        error_msg = "Temperature dictionary must contain 'K' or 'eV' key."
+        raise ValueError(error_msg)
+
+    # Return 3D Gaussian-distributed velocities
+    return rng.normal(loc=mean_velocity, scale=sigma, size=(n, 3)).astype(dtype)
+
 
 # species class definition
 class Species:
@@ -148,6 +228,72 @@ class Species:
             v_new = np.tile(v0, (n, 1))
 
         # reuse add_particles to avoid repeating logic (DRY principle)
+        self.add_particles(z_new, v_new)
+
+    def initialize_maxwellian(
+        self,
+        n: int,
+        z_min: float,
+        z_max: float,
+        temperature: dict[str, float],
+        mean_velocity: float = 0.0,
+        seed: int | None = None,
+    ) -> None:
+        """
+        Initialize particles uniformly in space with Maxwellian velocity distribution.
+
+        Parameters
+        ----------
+        n : int
+            Number of particles to initialize
+        z_min, z_max : float
+            Spatial bounds for uniform initialization
+        temperature : dict[str, float]
+            Particle temperature in Kelvin [K] or electronvolts [eV]
+        mean_velocity : float, optional
+            Mean drift velocity [m/s], default 0.0
+        seed : int or None, optional
+            RNG seed, default None
+
+        Notes
+        -----
+        This method is designed to be called immediately after instance
+        declaration. If particle positions or velocities are non-zero, a
+        RuntimeError will be thrown to prevent overwriting data.
+
+        Examples
+        --------
+        >>> from test_particle_sim_1d.particles import Species
+        >>> from test_particle_sim_1d.initialization import constants
+        >>> elec = Species(q=-constants.q_e, m=constants.m_e, name="electron", capacity=10)
+        >>> elec.vx
+        array([0., 0., 0., 0., 0., 0., 0., 0., 0., 0.])
+        >>> elec.initialize_maxwellian(n=10, z_min=0.0, z_max=1.0, temperature={"eV": 1.5})
+        >>> elec.vx
+        array([ -33033.04963604, -104607.77384604, -230482.34375015,
+                496914.378235  , -820260.54488735,  185363.40818585,
+                 -5937.95752475,  424445.8731878 ,  437843.29246543,
+               -115207.57202853])
+
+        Raises
+        ------
+        RuntimeError
+            If particle arrays already contain data (non-zero entries)
+        """
+        # Check if any of z, vx, vy, vz have non-zero entries
+        if (
+            np.any(self.z[: self.N])
+            or np.any(self.vx[: self.N])
+            or np.any(self.vy[: self.N])
+            or np.any(self.vz[: self.N])
+        ):
+            error_msg = "Cannot initialize Maxwellian velocities: particle arrays already contain data."
+            raise RuntimeError(error_msg)
+        rng = np.random.default_rng(seed)
+        z_new = rng.uniform(z_min, z_max, size=n).astype(self.dtype)
+        v_new = sample_maxwellian(
+            n, self.m, temperature, mean_velocity, seed, dtype=self.dtype
+        )
         self.add_particles(z_new, v_new)
 
     def __len__(self) -> int:
