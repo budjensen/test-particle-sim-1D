@@ -1,12 +1,37 @@
 """
 particles.py
 
-Defines the Species class: a Structure-of-Arrays (SoA) container that stores
-properties of particles belonging to one species (e.g., electrons or ions).
 
+Defines the ``Species`` class: a Structure-of-Arrays (SoA) container that stores
+properties of particles belonging to one species (e.g., electrons or ions) in a
+1D-in-space, 3D-in-velocity (1D3V) plasma simulation.
+
+
+The class keeps positions, velocity components, weights, and alive flags in
+separate NumPy arrays for efficient vectorized operations.
+
+
+Classes
+-------
+Species
+   Container for one particle species (e.g., electrons, ions).
+
+
+Examples
+--------
+Create an electron species and populate it with uniformly distributed particles:
+
+
+>>> import numpy as np
+>>> from test_particle_sim_1d.particles import Species
+>>> electrons = Species(q=-1.0, m=1.0, name="electron", capacity=100)
+>>> electrons.initialize_uniform(n=10, z_min=-0.1, z_max=0.1, v0=0.0, seed=42)
+>>> len(electrons)
+10
+>>> electrons.z.shape
+(100,)
 """
 
-# import statements
 from __future__ import annotations
 
 import numpy as np
@@ -15,10 +40,13 @@ import numpy as np
 # species class definition
 class Species:
     """
-    A simple Structure-of-Arrays (SoA) representation of a particle species.
+    Structure-of-Arrays (SoA) container for a single particle species.
 
-    Each physical quantity (position, velocity, etc.) is stored in its own
-    contiguous NumPy array for efficient vectorized operations.
+
+    Each physical quantity (position, velocity components, etc.) is stored in
+    its own contiguous NumPy array for efficient vectorized operations in a
+    1D-in-space, 3D-in-velocity (1D3V) simulation.
+
 
     Attributes
     ----------
@@ -51,7 +79,29 @@ class Species:
         capacity: int = 0,
         dtype=np.float64,
     ) -> None:
-        """Initialize empty species container"""
+        """
+        Initialize an empty species container.
+
+
+        Parameters
+        ----------
+        q : float
+            Charge of one particle in Coulombs.
+        m : float
+            Mass of one particle in kilograms.
+        name : str, optional
+            Label for this species, e.g., "electron" or "ion".
+        capacity : int, optional
+            Initial capacity (number of particle slots) to allocate.
+        dtype : numpy.dtype, optional
+            Floating-point dtype used for internal arrays (default numpy.float64).
+
+
+        Returns
+        -------
+        None
+        """
+
         # store physical constants and identifiers
         self.q = float(q)  # float
         self.m = float(m)  # float
@@ -74,19 +124,27 @@ class Species:
     # public methods
     def add_particles(self, z_init: np.ndarray, v_init: np.ndarray) -> None:
         """
-        Append new particles to this species
+        Append new particles to this species.
+
 
         Parameters
         ----------
         z_init : np.ndarray
-            Initial positions of new particles
-        vx_init : np.ndarray
-            Initial velocities of new particles
+            Initial positions of new particles, shape ``(N,)``.
+        v_init : np.ndarray
+            Initial velocities of new particles, shape ``(N, 3)``, ordered
+            as ``(vx, vy, vz)``.
+
+
+        Returns
+        -------
+        None
+
 
         Notes
         -----
-        function assumes both arrays are the same length
-        arrays are appended to the end of the current data
+        The two input arrays must have the same leading dimension ``N``.
+        New particles are appended to the end of the existing data.
         """
 
         # number of new particles being added
@@ -122,18 +180,28 @@ class Species:
         seed: int | None = None,
     ) -> None:
         """
-        Create N particles uniformly distributed in space
+        Create particles uniformly distributed in space.
+
 
         Parameters
         ----------
         n : int
-            number of particles to create
-        x_min, x_max : float
-            spatial bounds for uniform distribution
-        v0 : float, optional
-            initial velocity assigned to all particles (default 0)
+            Number of particles to create.
+        z_min : float
+            Lower bound of the position domain.
+        z_max : float
+            Upper bound of the position domain.
+        v0 : float or array_like, optional
+            Initial velocity assigned to all particles. If scalar, it is
+            interpreted as a single component value; if array-like, it should
+            broadcast to shape ``(3,)``. Default is 0.0.
         seed : int or None, optional
-            random seed for reproducibility
+            Random seed for reproducibility.
+
+
+        Returns
+        -------
+        None
         """
         # initialize random number generator (NumPy's modern API)
         rng = np.random.default_rng(seed)
@@ -142,20 +210,41 @@ class Species:
         z_new = rng.uniform(z_min, z_max, size=n).astype(self.dtype)
 
         # all velocities start with the same value v0
-        if v0 is None:
-            v_new = np.zeros((n, 3), dtype=self.dtype)
-        else:
-            v_new = np.tile(v0, (n, 1))
+        v_new = (
+            np.zeros((n, 3), dtype=self.dtype) if v0 is None else np.tile(v0, (n, 1))
+        )
 
         # reuse add_particles to avoid repeating logic (DRY principle)
         self.add_particles(z_new, v_new)
 
     def __len__(self) -> int:
+        """
+        Number of particles currently stored in this species.
+
+
+        Returns
+        -------
+        int
+            The number of particles ``N``.
+        """
         return self.N
 
     # internal helpers
     def _ensure_capacity(self, needed: int) -> None:
-        """Expand storage arrays if needed"""
+        """
+        Ensure that internal arrays can hold at least ``needed`` particles.
+
+
+        Parameters
+        ----------
+        needed : int
+            Required number of particle slots.
+
+
+        Returns
+        -------
+        None
+        """
 
         # guard pattern: early return if no expansion needed
         if needed <= self.capacity:
@@ -183,24 +272,30 @@ class Species:
         array_dtype=None,
     ) -> np.ndarray:
         """
-        Create a larger copy of existing array
+        Create a larger copy of an existing 1D array.
+
 
         Parameters
         ----------
         arr : np.ndarray
-            old array to copy from
+            Original array to copy from.
         new_cap : int
-            desired total length
-        fill : scalar
-            value to fill the new (empty) portion with
-        array_dtype : np.dtype or None
-            optionally override dtype (used for bool arrays)
+            Desired total length of the returned array.
+        fill : scalar, optional
+            Value used to initialize the newly allocated portion
+            (elements from ``len(arr)`` to ``new_cap - 1``).
+        array_dtype : numpy.dtype or None, optional
+            Optional dtype override for the returned array. If None,
+            ``arr.dtype`` is used.
+
 
         Returns
         -------
         np.ndarray
-            new array containing the old data plus new filler elements
+            New array of length ``new_cap`` containing the original data in
+            the first ``len(arr)`` entries and the ``fill`` value in the rest.
         """
+
         # pick the right data type
         dtype = array_dtype or arr.dtype
 
