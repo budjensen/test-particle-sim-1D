@@ -11,6 +11,11 @@ The class keeps positions, velocity components, weights, and alive flags in
 separate NumPy arrays for efficient vectorized operations.
 
 
+Functions
+---------
+sample_maxwellian : Generate velocities from a 3D Maxwellian distribution.
+
+
 Classes
 -------
 Species

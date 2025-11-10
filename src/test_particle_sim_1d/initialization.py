@@ -10,6 +10,22 @@ validate_gyromotion_timestep : Ensure timestep resolves gyromotion.
 validate_thermal_velocity_grid : Check that the gridsize and timestep are valid for a species' thermal velocity.
 get_max_collision_frequency : Calculate maximum collision frequency.
 validate_collision_frequency_timestep : Ensure timestep is small enough for MCC collision frequency.
+
+Classes
+-------
+Species
+   Container for one particle species (e.g., electrons, ions).
+
+Examples
+--------
+>>> import numpy as np
+>>> from test_particle_sim_1d.initialization import constants
+>>> v_th_e = np.sqrt(constants.q_e * 1.5 / constants.m_e)
+>>> v_th_i = np.sqrt(constants.kb * 300 / constants.m_p)
+>>> v_th_e   # Thermal velocity for 1.5 eV electrons
+np.float64(513637.0329481943)
+>>> v_th_i   # Thermal velocity for 300 K protons
+np.float64(1573.632716683777)
 """
 
 from __future__ import annotations
