@@ -15,6 +15,7 @@ from __future__ import annotations
 import numpy as np
 
 from test_particle_sim_1d import fields
+from test_particle_sim_1d.initialization import validate_gyromotion_timestep
 from test_particle_sim_1d.integrators import boris_1d3v_z
 from test_particle_sim_1d.particles import Species
 
@@ -64,6 +65,9 @@ def test_multiple_particle_gyromotion():
     # ------------------------------------------------------------
     dt = T_cyclotron / 400
     n_steps = 400
+
+    # Validate timestep
+    validate_gyromotion_timestep(dt, sp, B0)
 
     z = sp.z.copy()
     v = np.column_stack((sp.vx, sp.vy, sp.vz))
