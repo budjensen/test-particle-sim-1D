@@ -70,16 +70,11 @@ def sample_maxwellian(
 
     Raises
     ------
-    TypeError
-        If temperature is not provided as a dictionary
     ValueError
         If temperature dictionary does not contain 'K' or 'eV' key.
     """
     rng = np.random.default_rng(seed)
 
-    if not isinstance(temperature, dict):
-        error_msg = "Temperature must be provided as a dictionary with 'K' or 'eV' key."
-        raise TypeError(error_msg)
     if "eV" in temperature:
         sigma = np.sqrt(constants.q_e * temperature["eV"] / mass)
     elif "K" in temperature:
