@@ -36,13 +36,13 @@ from __future__ import annotations
 
 import numpy as np
 
+from test_particle_sim_1d.initialization import constants
 from test_particle_sim_1d.particles import Species
 
 
 def test_species_initialization():
     """Test that a species object can be created and is initially empty"""
-    s = Species(q=-1.602e-19, m=9.109e-31, name="electron", capacity=10)
-
+    s = Species(q=-constants.q_e, m=constants.m_e, name="electron", capacity=10)
     # Basic sanity checks
     assert isinstance(s, Species)
     assert s.N == 0
@@ -55,7 +55,7 @@ def test_species_initialization():
 
 def test_add_particles_increases_count():
     """Test adding new particles updates arrays correctly"""
-    s = Species(q=-1.602e-19, m=9.109e-31)
+    s = Species(q=-constants.q_e, m=constants.m_e)
     z_init = np.array([0.1, 0.2, 0.3])
     v_init = np.array([[1.0, 0.0, 0.0], [0.0, 1.0, 0.0], [0.0, 0.0, 1.0]])
 

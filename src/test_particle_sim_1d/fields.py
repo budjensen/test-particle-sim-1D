@@ -64,6 +64,28 @@ def E_uniform(z: np.ndarray, E0: float = 0.0, direction: str = "z") -> np.ndarra
     return E
 
 
+def Ez_from_grid(z: np.ndarray, z_grid: np.ndarray, E_grid: np.ndarray) -> np.ndarray:
+    """
+    Interpolate z direction electric field values from a 1D grid to particle positions.
+
+    Parameters
+    ----------
+    z : np.ndarray
+        Particle positions [m]
+    z_grid : np.ndarray
+        Grid positions corresponding to E_grid [m]
+    E_grid : np.ndarray
+        Electric field values on the grid [V/m]
+
+    Returns
+    -------
+    np.ndarray
+        Interpolated electric field at particle positions of shape (len(z), 3)
+    """
+    Ez = np.interp(z, z_grid, E_grid)
+    return np.column_stack((np.zeros_like(Ez), np.zeros_like(Ez), Ez))
+
+
 # ----------------------------------------------------------------------
 # Magnetic field definitions
 # ----------------------------------------------------------------------
