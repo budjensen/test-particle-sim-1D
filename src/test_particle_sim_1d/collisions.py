@@ -20,12 +20,11 @@ scatter_isotropic_3d     : Updates velocities of colliding particles (Elastic).
 
 from __future__ import annotations
 
-from typing import Callable, Optional
+from collections.abc import Callable
 
 import numpy as np
 
 from . import particles
-from .initialization import constants
 
 
 def apply_elastic_collisions(
@@ -35,7 +34,7 @@ def apply_elastic_collisions(
     neutral_mass: float,
     cross_section_func: Callable[[np.ndarray], np.ndarray],
     dt: float,
-    seed: Optional[int] = None,
+    seed: int | None = None,
 ) -> int:
     """
     Check for collisions between test particles and a background gas, then
@@ -65,7 +64,7 @@ def apply_elastic_collisions(
         The total number of collisions that occurred in this step.
     """
     rng = np.random.default_rng(seed)
-    
+
     # 1. Access active particle data
     # We only care about the first N particles that are alive
     N = species.N
@@ -76,26 +75,23 @@ def apply_elastic_collisions(
     vy = species.vy[:N]
     vz = species.vz[:N]
 
-    # 2. Calculate relative velocity 'g'
-    
+    # 2. Calculate EXACT relative velocity 'g'
+
     # Sample candidate neutrals for all active particles
-    # We pass seed=None to ensure different random neutrals are picked each call
-    # (unless the user specifically wants deterministic behavior with a seed)
     v_neutral_all = particles.sample_maxwellian(
         n=N,
         mass=neutral_mass,
         temperature={"K": neutral_temp_K},
         mean_velocity=0.0,
-        seed=seed 
+        seed=seed,
     )
-    
+
     # Calculate vector relative velocity for every particle
     v_rel_x = vx - v_neutral_all[:, 0]
     v_rel_y = vy - v_neutral_all[:, 1]
     v_rel_z = vz - v_neutral_all[:, 2]
-    
+
     # Compute magnitude g
-    # Even if v_ion is 0, g will be approx v_thermal_neutral
     g = np.sqrt(v_rel_x**2 + v_rel_y**2 + v_rel_z**2)
 
     # 3. Calculate Cross Section sigma(g)
@@ -109,7 +105,7 @@ def apply_elastic_collisions(
     # 5. Determine which particles collide (Vectorized Monte Carlo)
     # Generate random numbers [0, 1) for every particle
     R = rng.random(N)
-    collision_mask = R < P_coll
+    collision_mask = P_coll > R
     n_collisions = np.count_nonzero(collision_mask)
 
     if n_collisions == 0:
@@ -123,16 +119,11 @@ def apply_elastic_collisions(
     v_ion = np.column_stack((vx[idx], vy[idx], vz[idx]))
 
     # Reuse the specific neutrals that we calculated the collision probability against
-    # This is physically consistent: the neutral you "checked" is the one you "hit"
     v_neutral = v_neutral_all[idx]
 
     # Perform Isotropic Elastic Scattering
     v_ion_new = scatter_isotropic_3d(
-        v1=v_ion,
-        v2=v_neutral,
-        m1=species.m,
-        m2=neutral_mass,
-        rng=rng
+        v1=v_ion, v2=v_neutral, m1=species.m, m2=neutral_mass, rng=rng
     )
 
     # 7. Write new velocities back to the species object
@@ -144,11 +135,7 @@ def apply_elastic_collisions(
 
 
 def scatter_isotropic_3d(
-    v1: np.ndarray,
-    v2: np.ndarray,
-    m1: float,
-    m2: float,
-    rng: np.random.Generator
+    v1: np.ndarray, v2: np.ndarray, m1: float, m2: float, rng: np.random.Generator
 ) -> np.ndarray:
     """
     Perform elastic hard-sphere scattering in 3D.
@@ -176,7 +163,6 @@ def scatter_isotropic_3d(
     """
     n_cols = len(v1)
     total_mass = m1 + m2
-    reduced_mass = (m1 * m2) / total_mass
 
     # 1. Calculate Center of Mass Velocity
     v_cm = (m1 * v1 + m2 * v2) / total_mass
@@ -196,13 +182,10 @@ def scatter_isotropic_3d(
     nx = sin_theta * np.cos(phi)
     ny = sin_theta * np.sin(phi)
     nz = cos_theta
-    
+
     # Shape into (N, 3)
     n_vec = np.column_stack((nx, ny, nz))
 
     # 4. Calculate new velocity for v1
-    # In CoM frame: v1' = v_cm + (m2 / M_tot) * |v_rel| * n_vec
-    # The magnitude of v1 in CoM is (m2 / M_tot) * |v_rel|
-    v1_new = v_cm + (m2 / total_mass) * v_rel_mag * n_vec
-
-    return v1_new
+    # v1' = v_cm + (m2 / M_tot) * |v_rel| * n_vec
+    return v_cm + (m2 / total_mass) * v_rel_mag * n_vec
