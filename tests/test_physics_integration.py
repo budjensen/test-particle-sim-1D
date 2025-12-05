@@ -54,23 +54,25 @@ def test_isothermal_relaxation():
 
     assert T_start > 10000, "Initial temperature should be high."
 
-    # --- 3. Run Time Loop ---
+    # --- 3. Initialize Collisions ---
+    collision_obj = collisions.MCCollision(
+        species=ions,
+        dt=dt,
+        neutral_density=neutral_density,
+        neutral_temp=T_neutral_K,
+        neutral_mass=constants.m_p,
+        elastic_cross_section=(np.array([0.0, 10.0]), np.array([1.0e-19, 1.0e-19])),
+    )
+
+    # --- 4. Run Time Loop ---
     temp_history = [T_start]
 
     for _ in range(n_steps):
-        collisions.apply_elastic_collisions(
-            species=ions,
-            neutral_density=neutral_density,
-            neutral_temp_K=T_neutral_K,
-            neutral_mass=constants.m_p,
-            cross_section_func=constant_sigma,
-            dt=dt,
-            seed=None,
-        )
+        collision_obj.do_collisions(seed=None)
         current_T = diagnostics.compute_global_temperature(ions)
         temp_history.append(current_T)
 
-    # --- 4. Verify Results ---
+    # --- 5. Verify Results ---
     T_final = temp_history[-1]
     print(f"[Thermalization] End   T_ion: {T_final:.2f} K")
 
@@ -126,18 +128,21 @@ def test_velocity_isotropization():
     assert Tx_start > 10000
     assert Ty_start < 10
 
-    # --- 3. Run Collision Loop ---
-    for _ in range(n_steps):
-        collisions.apply_elastic_collisions(
-            species=ions,
-            neutral_density=neutral_density,
-            neutral_temp_K=T_neutral_K,
-            neutral_mass=constants.m_p,
-            cross_section_func=constant_sigma,
-            dt=dt,
-        )
+    # --- 3. Initialize Collisions ---
+    ion_collisions = collisions.MCCollision(
+        species=ions,
+        dt=dt,
+        neutral_density=neutral_density,
+        neutral_temp=T_neutral_K,
+        neutral_mass=constants.m_p,
+        elastic_cross_section=(np.array([0.0, 10.0]), np.array([1.0e-19, 1.0e-19])),
+    )
 
-    # --- 4. Verify Results ---
+    # --- 4. Run Collision Loop ---
+    for _ in range(n_steps):
+        ion_collisions.do_collisions(seed=None)
+
+    # --- 5. Verify Results ---
     Tx_final, Ty_final, Tz_final = diagnostics.compute_component_temperatures(ions)
     print(
         f"[Isotropization] End   Tx: {Tx_final:.0f}, Ty: {Ty_final:.0f}, Tz: {Tz_final:.0f} K"
@@ -195,18 +200,21 @@ def test_distribution_relaxation():
 
     print(f"\n[Distribution] Start: Mono-energetic at {energy_init_eV} eV")
 
-    # --- 3. Run Collision Loop ---
-    for _ in range(n_steps):
-        collisions.apply_elastic_collisions(
-            species=ions,
-            neutral_density=neutral_density,
-            neutral_temp_K=T_neutral_K,
-            neutral_mass=constants.m_p,
-            cross_section_func=constant_sigma,
-            dt=dt,
-        )
+    # --- 3. Initialize Collisions ---
+    ion_collisions = collisions.MCCollision(
+        species=ions,
+        dt=dt,
+        neutral_density=neutral_density,
+        neutral_temp=T_neutral_K,
+        neutral_mass=constants.m_p,
+        elastic_cross_section=(np.array([0.0, 10.0]), np.array([1.0e-19, 1.0e-19])),
+    )
 
-    # --- 4. Verify Temperature Profile ---
+    # --- 4. Run Collision Loop ---
+    for _ in range(n_steps):
+        ion_collisions.do_collisions(seed=None)
+
+    # --- 5. Verify Temperature Profile ---
     z_grid = np.linspace(0.0, 0.1, 11)
     T_profile = diagnostics.compute_temperature_profile(ions, z_grid)
     avg_profile_T = np.mean(T_profile)
@@ -218,7 +226,7 @@ def test_distribution_relaxation():
         "Temperature profile average did not converge"
     )
 
-    # --- 5. Verify Energy Distribution (IEDF) ---
+    # --- 6. Verify Energy Distribution (IEDF) ---
     # Using 100 bins as requested
     centers, pdf = diagnostics.compute_energy_distribution(ions, n_bins=100, e_max=5.0)
 
@@ -291,28 +299,31 @@ def test_density_profile_reconstruction():
     print(f"\n[Density+Collisions] Start T: {T_init:.1f} K")
     assert T_init == 0.0, "Initial temperature should be 0"
 
-    # --- 3. Run Collision Loop (Heating) ---
+    # --- 3. Initialize Collisions ---
+    ion_collisions = collisions.MCCollision(
+        species=ions,
+        dt=dt,
+        neutral_density=neutral_density,
+        neutral_temp=T_neutral_K,
+        neutral_mass=constants.m_p,
+        elastic_cross_section=(np.array([0.0, 10.0]), np.array([1.0e-19, 1.0e-19])),
+    )
+
+    # --- 4. Run Collision Loop (Heating) ---
     # We do NOT update positions (z), only velocities via collisions.
     # This ensures density profile should remain constant while T rises.
 
     for _ in range(n_steps):
-        collisions.apply_elastic_collisions(
-            species=ions,
-            neutral_density=neutral_density,
-            neutral_temp_K=T_neutral_K,
-            neutral_mass=constants.m_p,
-            cross_section_func=constant_sigma,
-            dt=dt,
-        )
+        ion_collisions.do_collisions(seed=None)
 
-    # --- 4. Verify Collision Physics (Heating) ---
+    # --- 5. Verify Collision Physics (Heating) ---
     T_final = diagnostics.compute_global_temperature(ions)
     print(f"[Density+Collisions] End T:   {T_final:.1f} K (Expected > 50 K)")
 
     # Particles should have heated up significantly from 0 K
     assert T_final > 50.0, "Collisions failed to heat the particles"
 
-    # --- 5. Verify Density Profile (Diagnostics) ---
+    # --- 6. Verify Density Profile (Diagnostics) ---
     # The density profile must remain exactly the step function, verifying that
     # collisions modified velocities without corrupting positions.
 
