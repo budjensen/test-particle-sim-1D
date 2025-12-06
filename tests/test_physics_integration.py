@@ -235,7 +235,6 @@ def test_distribution_relaxation():
         2 * np.sqrt(centers / np.pi) * (1 / kT) ** (1.5) * np.exp(-centers / kT)
     )
 
-    # --- FIXED L1 NORM CALCULATION ---
     # 1. Calculate the bin width (Delta E)
     bin_width = centers[1] - centers[0]
 
