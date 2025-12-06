@@ -462,7 +462,7 @@ class MCCollision:
 
                     v_out_product = self.scatter_isotropic_3d(
                         v1=v_in,
-                        v2=v_neutral_all[self.species.N - num_created : self.species.N],
+                        v2=v_neutral_all[active_collision_mask],
                         m1=self.species.m,
                         m2=self.m_g,
                         rng=rng,

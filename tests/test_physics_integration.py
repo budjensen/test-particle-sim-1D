@@ -351,12 +351,183 @@ def test_density_profile_reconstruction():
     assert avg_density_left > 1.8 * avg_density_right, "Density contrast not preserved"
 
 
+def test_ionization_growth():
+    """
+    Verify that ionization collisions create new electron-ion pairs
+    and decrease particle energy correctly.
+
+    Case: 50 eV Electrons -> Ionizing Collisions -> Growth in N + Energy Loss.
+    """
+    # --- 1. Parameters ---
+    n_initial = 1000
+    dt = 1e-11  # Small timestep
+    n_steps = 100
+
+    # 15 eV Threshold (Argon-like)
+    neutral_density = 5e22  # Very high density to force collisions quickly
+    T_neutral_K = 300.0
+
+    # Define Cross-Section: Step function
+    energy_grid = np.array([0.0, 14.9, 15.0, 100.0])
+    sigma_grid = np.array([0.0, 0.0, 2.0e-20, 2.0e-20])
+
+    # --- 2. Initialize Species ---
+    electrons = Species(
+        q=-constants.q_e, m=constants.m_e, name="electron", capacity=n_initial * 2
+    )
+
+    argon_ions = Species(
+        q=constants.q_e, m=40 * constants.m_p, name="argon_ion", capacity=n_initial
+    )
+
+    # Initialize High Velocity Beam (50 eV)
+    # 50 eV is well above the 15 eV threshold
+    v_beam = np.sqrt(2 * 50.0 * constants.q_e / constants.m_e)
+
+    rng = np.random.default_rng(42)
+    z_pos = rng.uniform(0, 0.01, n_initial)
+    vx = np.full(n_initial, v_beam)
+    vy = np.zeros(n_initial)
+    vz = np.zeros(n_initial)
+
+    electrons.add_particles(z_pos, np.column_stack((vx, vy, vz)))
+
+    # --- 3. Initialize Collisions ---
+    # Only turn on Ionization (others are None)
+    col_handler = collisions.MCCollision(
+        species=electrons,
+        dt=dt,
+        neutral_density=neutral_density,
+        neutral_temp=T_neutral_K,
+        neutral_mass=40 * constants.m_p,
+        ionization_cross_section=(energy_grid, sigma_grid),
+        product_species=argon_ions,
+    )
+
+    print(f"\n[Ionization] Start N_elec: {electrons.N}, N_ion: {argon_ions.N}")
+
+    # --- 4. Run Collision Loop ---
+    for _ in range(n_steps):
+        col_handler.do_collisions(seed=None)
+
+    # --- 5. Verify Results ---
+    print(f"[Ionization] End   N_elec: {electrons.N}, N_ion: {argon_ions.N}")
+
+    # Check Particle Creation
+    assert n_initial < electrons.N, "No new electrons were created!"
+    assert argon_ions.N > 0, "No ions were created!"
+
+    # Ensure 1:1 creation (every new electron comes with a new ion)
+    n_created = electrons.N - n_initial
+    assert n_created == argon_ions.N, (
+        f"Mismatch: +{n_created} e-, but +{argon_ions.N} ions"
+    )
+
+    # Check Energy Loss
+    # Initial Energy = 50 eV
+    # Expected: E_new = (50 - 15) / 2 = 17.5 eV per electron
+    # We verify the mean energy has dropped significantly
+
+    v_final_x = electrons.vx[: electrons.N]
+    v_final_y = electrons.vy[: electrons.N]
+    v_final_z = electrons.vz[: electrons.N]
+
+    v2_final = v_final_x**2 + v_final_y**2 + v_final_z**2
+    E_final_eV = 0.5 * constants.m_e * v2_final / constants.q_e
+    mean_E_final = np.mean(E_final_eV)
+
+    print(f"[Ionization] Mean Final Energy: {mean_E_final:.2f} eV (Started at 50.0 eV)")
+
+    assert mean_E_final < 48.0, (
+        "Electrons failed to lose energy (threshold subtraction failed)"
+    )
+    assert mean_E_final > 10.0, "Electrons lost too much energy (unphysical check)"
+
+
+def test_charge_exchange_braking():
+    """
+    Verify that Charge Exchange (CEX) effectively thermalizes a fast ion beam
+    by replacing fast ions with slow (thermal) ions.
+
+    Case: 100 eV Ion Beam -> CEX Collisions -> Rapid Cooling to ~300 K.
+    """
+    # --- 1. Parameters ---
+    n_particles = 1000
+    dt = 5e-10
+    n_steps = 200
+
+    # Physics
+    T_neutral_K = 300.0  # Room temperature (~0.026 eV)
+    neutral_density = 1e24  # High density to ensure collisions
+
+    # Define Cross-Section
+    energy_grid = np.array([0.0, 1000.0])
+    sigma_grid = np.array([1.0e-19, 1.0e-19])
+
+    # --- 2. Initialize Species ---
+    # Ions (Argon)
+    ions = Species(
+        q=constants.q_e, m=40 * constants.m_p, name="argon_ion", capacity=n_particles
+    )
+
+    # Initialize Fast Beam (100 eV)
+    # 100 eV is roughly 22,000 m/s for Argon
+    v_beam = np.sqrt(2 * 100.0 * constants.q_e / ions.m)
+
+    z_pos = np.zeros(n_particles)
+    vx = np.full(n_particles, v_beam)
+    vy = np.zeros(n_particles)
+    vz = np.zeros(n_particles)
+
+    ions.add_particles(z_pos, np.column_stack((vx, vy, vz)))
+
+    E_initial_eV = 100.0
+    print(f"\n[CEX] Start Mean Energy: {E_initial_eV:.2f} eV (Beam)")
+
+    # --- 3. Initialize Collisions ---
+    # Only turn on Charge Exchange
+    cex_handler = collisions.MCCollision(
+        species=ions,
+        dt=dt,
+        neutral_density=neutral_density,
+        neutral_temp=T_neutral_K,
+        neutral_mass=40 * constants.m_p,
+        charge_exchange_cross_section=(energy_grid, sigma_grid),
+    )
+
+    # --- 4. Run Collision Loop ---
+    for _ in range(n_steps):
+        cex_handler.do_collisions(seed=None)
+
+    # --- 5. Verify Results ---
+    # Calculate final mean energy
+    v_final_x = ions.vx[: ions.N]
+    v_final_y = ions.vy[: ions.N]
+    v_final_z = ions.vz[: ions.N]
+
+    v2_final = v_final_x**2 + v_final_y**2 + v_final_z**2
+    E_final_J = 0.5 * ions.m * v2_final
+    E_final_eV = np.mean(E_final_J / constants.q_e)
+
+    print(f"[CEX] End   Mean Energy: {E_final_eV:.4f} eV (Target: ~0.026 eV)")
+
+    # Drastic Cooling
+    assert E_final_eV < 1.0, "Charge Exchange failed to cool the beam!"
+
+    # Thermalization
+    # The final energy should be reasonably close to the neutral temp (0.026 eV)
+    T_neutral_eV = (constants.kb * T_neutral_K) / constants.q_e
+    assert E_final_eV < 10 * T_neutral_eV, "Ions are still much hotter than neutrals"
+
+
 if __name__ == "__main__":
     try:
         test_isothermal_relaxation()
         test_velocity_isotropization()
         test_distribution_relaxation()
         test_density_profile_reconstruction()
+        test_ionization_growth()
+        test_charge_exchange_braking()
         print("\nAll Physics Tests Passed!")
     except AssertionError as e:
         print(f"\nTest Failed: {e}")
