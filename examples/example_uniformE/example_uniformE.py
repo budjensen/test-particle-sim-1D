@@ -1,5 +1,5 @@
 """
-examples/example_uniformE.py
+example_uniformE.py
 
 Demonstration script: ions in a 1D domain with a uniform electric field
 and Monte Carlo elastic collisions with a background neutral gas.

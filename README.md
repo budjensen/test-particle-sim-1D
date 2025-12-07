@@ -1,6 +1,51 @@
 # test-particle-sim-1D
 
-A Monte Carlo test-particle simulator developed for **APC 524** — designed to model charged-particle motion and collisions in prescribed electromagnetic fields, bridging between full Particle-in-Cell (PIC) and swarm Monte Carlo (MC) approaches.
+A Monte Carlo **test-particle simulator** developed for **APC 524**.
+This codebase models **charged-particle motion in 1D3V** (1 spatial dimension, 3 velocity components) under prescribed electromagnetic fields and performs **Monte Carlo collisions (MCC)** with background neutrals.
+
+The project bridges between **Particle-in-Cell (PIC)** and **swarm Monte Carlo (MC)** methods:
+- Particles are pushed using the **Boris integrator** under user-defined E and B fields
+- Collisions use a **null-collision MCC model** with support for elastic scattering, ionization, charge exchange, and excitation
+- Diagnostics compute temperature, drift, density profiles, and energy distributions
+- Example scripts demonstrate how to run simulations, save results, and generate plots
+
+This repository includes:
+- A full MCC collision engine
+- A modular particle pusher
+- Diagnostic tools
+- Example simulations (`example_uniformE`, etc.)
+- Automated plotting utilities
+- Pre-commit formatting, linting, and testing
+- A growing test suite validating physics (isotropy, thermalization, distribution convergence, etc.)
+
+---
+
+## Features
+
+### **Physics Modules**
+- **Boris pusher** for charged-particle motion in E and B fields
+- **Electromagnetic field models:**
+  - Uniform electric field
+  - Uniform magnetic field
+  - Magnetic mirror configuration
+  - Space-dependent fields via user-defined functions
+- **Monte Carlo Collision (MCC) engine:**
+  - Null-collision method for efficiency
+  - Elastic scattering
+  - Ionization (with product species creation)
+  - Charge exchange
+  - Excitation collisions
+  - Energy-dependent cross-sections
+  - Isotropic scattering in center-of-mass frame
+
+### **Diagnostics**
+- Global temperature
+- Component temperatures (Tx, Ty, Tz)
+- Drift velocity
+- Density profiles (`n(z)`)
+- Temperature profiles (`T(z)`)
+- Energy distribution functions (EEDF/IEDF)
+- Particle trajectory recording
 
 
 ## Installation (with [uv](https://github.com/astral-sh/uv))
