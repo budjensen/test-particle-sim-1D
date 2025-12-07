@@ -184,6 +184,20 @@ class MCCollision:
             Species object for ions created by ionization collisions.
             Required if ionization_cross_section is provided. Default is None.
 
+        Notes
+        -----
+        Cross sections with threshold energies (excitation and ionization)
+        should have the first non-zero energy value equal to the threshold.
+        For a threshold energy of 15.0 eV, acceptable input tuples
+        are:
+        ```
+        ([15.0, 16.0, 17.0], [1.0e-20, 1.0e-20, 2.0e-20])
+        ```
+        or
+        ```
+        ([0.0, 15.0, 16.0, 17.0], [0.0, 1.0e-20, 1.0e-20, 2.0e-20])
+        ```
+
         Raises
         ------
         ValueError
@@ -255,7 +269,10 @@ class MCCollision:
             self.collision_processes[coll_idx] = True
             self.energy[coll_idx] = np.asarray(ionization_cross_section[0])
             self.cross_section[coll_idx] = np.asarray(ionization_cross_section[1])
-            self.threshold_energy[coll_idx] = ionization_cross_section[0][0]
+            first_nonzero_idx = np.min(np.nonzero(ionization_cross_section[1]))
+            self.threshold_energy[coll_idx] = ionization_cross_section[0][
+                first_nonzero_idx
+            ]
 
         if charge_exchange_cross_section is not None:
             if np.isclose(self.species.m, constants.m_e, atol=0.0, rtol=1e-4):
@@ -271,7 +288,10 @@ class MCCollision:
             self.collision_processes[coll_idx] = True
             self.energy[coll_idx] = np.asarray(excitation_cross_section[0])
             self.cross_section[coll_idx] = np.asarray(excitation_cross_section[1])
-            self.threshold_energy[coll_idx] = excitation_cross_section[0][0]
+            first_nonzero_idx = np.min(np.nonzero(excitation_cross_section[1]))
+            self.threshold_energy[coll_idx] = excitation_cross_section[0][
+                first_nonzero_idx
+            ]
 
         # Calculate a total cross section from the sum of active collisions
         nu_max_energy = np.arange(0, 100.1, 0.2)
@@ -279,9 +299,7 @@ class MCCollision:
         for ii, active in enumerate(self.collision_processes):
             if not active:
                 continue
-            energy = self.energy[ii]
-            xsection = self.cross_section[ii]
-            total_xsection += np.interp(nu_max_energy, energy, xsection, left=0.0)
+            total_xsection += self.get_xsection(ii, nu_max_energy)
         self.nu_max = np.max(
             self.n_g
             * np.sqrt(2 * nu_max_energy * constants.q_e / self.species.m)
@@ -379,7 +397,7 @@ class MCCollision:
             if not active:
                 continue
 
-            sigma = np.interp(E_coll, self.energy[ii], self.cross_section[ii], left=0.0)
+            sigma = self.get_xsection(ii, E_coll)
 
             nu += self.n_g * sigma * v_coll / self.nu_max
 
@@ -521,6 +539,37 @@ class MCCollision:
             random[active_collision_mask] = 1.0
 
         return None
+
+    def get_xsection(self, coll_idx: int, E_coll: np.ndarray) -> np.ndarray:
+        """
+        Return the cross-section for a given collision type at specified energies.
+        Properly handles threshold energies for inelastic collisions.
+
+        Parameters
+        ----------
+        coll_idx : int
+            Index of the collision type.
+        E_coll : np.ndarray
+            Collision energies [eV].
+
+        Returns
+        -------
+        np.ndarray
+            Interpolated cross-section values [m^2].
+        """
+        if self.threshold_energy[coll_idx] > 0.0:
+            xsections = np.zeros_like(E_coll)
+            xsections[E_coll >= self.threshold_energy[coll_idx]] = np.interp(
+                E_coll[E_coll >= self.threshold_energy[coll_idx]],
+                self.energy[coll_idx],
+                self.cross_section[coll_idx],
+                left=0.0,
+            )
+            return xsections
+
+        return np.interp(
+            E_coll, self.energy[coll_idx], self.cross_section[coll_idx], left=0.0
+        )
 
     def get_energy_loss_scale(
         self,
