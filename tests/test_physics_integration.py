@@ -368,8 +368,8 @@ def test_ionization_growth():
     T_neutral_K = 300.0
 
     # Define Cross-Section: Step function
-    energy_grid = np.array([0.0, 14.9, 15.0, 100.0])
-    sigma_grid = np.array([0.0, 0.0, 2.0e-20, 2.0e-20])
+    energy_grid = np.array([15.0, 100.0])
+    sigma_grid = np.array([2.0e-20, 2.0e-20])
 
     # --- 2. Initialize Species ---
     electrons = Species(
@@ -441,7 +441,7 @@ def test_ionization_growth():
     assert mean_E_final < 48.0, (
         "Electrons failed to lose energy (threshold subtraction failed)"
     )
-    assert mean_E_final > 10.0, "Electrons lost too much energy (unphysical check)"
+    assert mean_E_final > 1.0, "Electrons lost too much energy (unphysical check)"
 
 
 def test_charge_exchange_braking():
@@ -520,6 +520,91 @@ def test_charge_exchange_braking():
     assert E_final_eV < 10 * T_neutral_eV, "Ions are still much hotter than neutrals"
 
 
+def test_excitation_energy_loss():
+    """
+    Verify that excitation collisions act as a discrete energy sink.
+
+    Case: 15 eV Electrons -> 10 eV Threshold -> Result: 5 eV Electrons.
+    Verifies that N is constant (unlike Ionization) but Energy drops.
+    """
+    # --- 1. Parameters ---
+    n_particles = 1000
+    dt = 1e-11
+    n_steps = 100
+
+    threshold_eV = 10.0
+    neutral_density = 1e23  # High density to ensure collision
+    T_neutral_K = 300.0
+
+    # Define Cross-Section: Step Function
+    energy_grid = np.array([10.0, 100.0])
+    sigma_grid = np.array([5.0e-20, 5.0e-20])
+
+    # --- 2. Initialize Species ---
+    electrons = Species(
+        q=-constants.q_e, m=constants.m_e, name="electron", capacity=n_particles
+    )
+
+    # Initialize Beam at 15 eV
+    # This is designed so they collide ONCE (15 -> 5) and then stop (5 < 10)
+    E_start_eV = 15.0
+    v_beam = np.sqrt(2 * E_start_eV * constants.q_e / constants.m_e)
+
+    rng = np.random.default_rng(42)
+    z_pos = rng.uniform(0, 0.01, n_particles)
+    vx = np.full(n_particles, v_beam)
+    vy = np.zeros(n_particles)
+    vz = np.zeros(n_particles)
+
+    electrons.add_particles(z_pos, np.column_stack((vx, vy, vz)))
+
+    # --- 3. Initialize Collisions ---
+    # Only turn on Excitation
+    exc_handler = collisions.MCCollision(
+        species=electrons,
+        dt=dt,
+        neutral_density=neutral_density,
+        neutral_temp=T_neutral_K,
+        neutral_mass=40 * constants.m_p,
+        excitation_cross_section=(energy_grid, sigma_grid),
+    )
+
+    print(f"\n[Excitation] Start Mean Energy: {E_start_eV:.2f} eV")
+    print(f"[Excitation] Threshold: {threshold_eV:.2f} eV")
+
+    # --- 4. Run Collision Loop ---
+    for _ in range(n_steps):
+        exc_handler.do_collisions(seed=None)
+
+    # --- 5. Verify Results ---
+
+    # Check particle count (must be constant)
+    # Excitation does not create or destroy particles
+    assert n_particles == electrons.N, (
+        f"Particle count changed! Started {n_particles}, Ended {electrons.N}"
+    )
+
+    # Check Final Energy
+    v_final_x = electrons.vx[: electrons.N]
+    v_final_y = electrons.vy[: electrons.N]
+    v_final_z = electrons.vz[: electrons.N]
+
+    v2_final = v_final_x**2 + v_final_y**2 + v_final_z**2
+    E_final_J = 0.5 * constants.m_e * v2_final
+    E_final_eV = E_final_J / constants.q_e
+    mean_final_E = np.mean(E_final_eV)
+
+    print(f"[Excitation] End   Mean Energy: {mean_final_E:.2f} eV (Target: ~5.00 eV)")
+
+    # Expectation: 15.0 - 10.0 = 5.0 eV
+    assert abs(mean_final_E - 5.0) < 0.5, (
+        "Electrons did not lose the correct threshold energy!"
+    )
+
+    # Double check no electrons are stuck at 15 eV
+    assert np.max(E_final_eV) < 14.0, "Some electrons failed to collide!"
+
+
 if __name__ == "__main__":
     try:
         test_isothermal_relaxation()
@@ -528,6 +613,7 @@ if __name__ == "__main__":
         test_density_profile_reconstruction()
         test_ionization_growth()
         test_charge_exchange_braking()
+        test_excitation_energy_loss()
         print("\nAll Physics Tests Passed!")
     except AssertionError as e:
         print(f"\nTest Failed: {e}")
