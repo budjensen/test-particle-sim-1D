@@ -1,5 +1,5 @@
 """
-plotting.py
+example_uniformE_plotting.py
 
 Combined loader + plotting for the example_uniformE simulation.
 
@@ -130,7 +130,6 @@ def main():
 
     time = data["time"]
     temperature = data["temperature"]
-    # drift_vel = data["drift_velocity"]
     z_grid = data["z_grid"]  # bin edges
     density = data["density_profile"]  # shape (N_samples, N_bins)
     tracer_traj = data["tracer_trajectories"]
@@ -140,7 +139,6 @@ def main():
     # Compute bin centers from edges
     z_centers = 0.5 * (z_grid[:-1] + z_grid[1:])
 
-    # --- Make plots ---
     # 1. Temperature vs time
     plot_temperature_history(
         time,
