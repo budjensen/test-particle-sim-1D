@@ -34,7 +34,9 @@ argon_cross_section_data = np.load("cross_sections/argon_momentum_transfer.npy")
 torr_to_m3 = 3.223e22  # m^-3 per Torr at 300 K
 
 
-def store_and_remove_particles(species: Species, z_max: float) -> np.ndarray:
+def store_and_remove_particles(
+    species: Species, z_max: float
+) -> tuple[np.ndarray, np.ndarray]:
     """Remove particles and return a buffer of particles that have exited the domain at z_max.
 
     Parameters
@@ -49,6 +51,8 @@ def store_and_remove_particles(species: Species, z_max: float) -> np.ndarray:
     buffer : np.ndarray
         Buffer containing the velocities of particles that have exited the domain.
         Shape is (N, 3) where N is the number of particles removed.
+    remove_idx : np.ndarray
+        Indices of the particles that were removed from the species.
     """
     # Create buffer
     remove_mask = species.z >= z_max
@@ -60,7 +64,7 @@ def store_and_remove_particles(species: Species, z_max: float) -> np.ndarray:
     remove_idx = np.where(remove_mask)[0]
     species.remove_particles(remove_idx)
 
-    return buffer
+    return buffer, remove_idx
 
 
 def run_child_sheath_example() -> None:
@@ -211,13 +215,20 @@ def run_child_sheath_example() -> None:
         ions.vz[:N] = v[:, 2]
 
         # Remove particles that have exited the domain
-        lost_particles_buffer = store_and_remove_particles(ions, z_max)
+        lost_particles_buffer, removed_indices = store_and_remove_particles(ions, z_max)
         if len(lost_particles_buffer) > 0:
             n_to_store = len(lost_particles_buffer)
             lost_particles[
                 lost_particle_count : lost_particle_count + n_to_store, :
             ] = lost_particles_buffer
             lost_particle_count += n_to_store
+            if removed_indices.size > 0:
+                # Replace the tracer indices with self.N if they were removed
+                # and make sure self.N is set to z = z_max for plotting purposes
+                for i, tracer_idx in enumerate(tracer_indices):
+                    if tracer_idx in removed_indices:
+                        tracer_indices[i] = ions.N
+                ions.z[ions.N] = z_max
 
         # Apply Monte Carlo collisions
         collision_handler.do_collisions(seed=None)
@@ -254,6 +265,10 @@ def run_child_sheath_example() -> None:
     energy_centers = 0.5 * (energy_bins[:-1] + energy_bins[1:])
 
     # --- Save results ---
+
+    # Remove any zero entries at the end of the trajectories array
+    traj_hist = traj_hist[:sample_idx, :]
+    time_hist = time_hist[:sample_idx]
 
     results_dir = Path(__file__).resolve().parent / "collisional_results"
     results_dir.mkdir(parents=True, exist_ok=True)
