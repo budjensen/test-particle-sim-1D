@@ -1,8 +1,9 @@
 """
-examples/example_uniformE.py
+uniformE_B.py
 
-Demonstration script: ions in a 1D domain with a uniform electric field
-and Monte Carlo elastic collisions with a background neutral gas.
+Demonstration script: ions in a 1D domain with a uniform electric field,
+a uniform magnetic field, and Monte Carlo elastic collisions with a
+background neutral gas.
 
 Workflow per timestep
 ---------------------
@@ -37,10 +38,10 @@ def apply_periodic_boundaries(z: np.ndarray, z_min: float, z_max: float) -> None
     z[:] = ((z - z_min) % L) + z_min
 
 
-def run_uniformE_example() -> None:
-    """Run a simple 1D3V simulation with uniform E-field and elastic collisions."""
+def run_uniformE_B_example() -> None:
+    """Run a 1D3V simulation with uniform E-field, uniform B-field, and elastic collisions."""
 
-    # Simulation parameters
+    # --- Simulation parameters ---
 
     # Spatial domain [m]
     z_min = 0.0
@@ -55,9 +56,9 @@ def run_uniformE_example() -> None:
     n_steps = 2000
     sample_interval = 10  # record diagnostics every N steps
 
-    # Fields: uniform Ez, no magnetic field
+    # Fields: uniform Ez and uniform B (e.g., along y)
     E0 = 5.0e3  # V/m, accelerates ions along +z
-    B0 = 0.0  # Tesla
+    B0 = 0.1  # Tesla, uniform; choose direction below
 
     # Background neutral gas for collisions
     neutral_density = 2.0e21  # m^-3
@@ -72,7 +73,7 @@ def run_uniformE_example() -> None:
     # Choose a small subset of tracer particles for trajectories
     n_tracers = 10
 
-    # Initialize ion species
+    # --- Initialize ion species ---
 
     ions = Species(
         q=constants.q_e,
@@ -90,7 +91,7 @@ def run_uniformE_example() -> None:
         seed=42,
     )
 
-    # Set up collision handler (elastic ion-neutral collisions)
+    # --- Set up collision handler (elastic ion-neutral collisions) ---
 
     # Simple constant elastic cross section as a function of energy
     # Energy grid in eV
@@ -106,7 +107,7 @@ def run_uniformE_example() -> None:
         elastic_cross_section=(energy_grid, sigma_elastic),
     )
 
-    # Diagnostics storage
+    # --- Diagnostics storage ---
 
     n_samples = n_steps // sample_interval + 1
     time_hist = np.zeros(n_samples)
@@ -118,17 +119,23 @@ def run_uniformE_example() -> None:
     tracer_indices = np.arange(min(n_tracers, ions.N))
     traj_hist = np.zeros((n_samples, tracer_indices.size))
 
-    # Define field functions (compatible with boris_1d3v_z)
+    # --- Define field functions (compatible with boris_1d3v_z) ---
 
     def E_func(z: np.ndarray) -> np.ndarray:
-        # Uniform Ez field along +z
+        """Uniform Ez field along +z."""
         return fields.E_uniform(z, E0=E0, direction="z")
 
     def B_func(z: np.ndarray) -> np.ndarray:
-        # No magnetic field in this example
-        return fields.B_uniform(z, B0=B0, direction="z")
+        """
+        Uniform magnetic field.
 
-    # 6. Main time integration loop
+        Example choice:
+        - B along y: direction="y" for ExB drift in x
+        - or B along z: direction="z" for gyromotion in xy plane
+        """
+        return fields.B_uniform(z, B0=B0, direction="y")
+
+    # --- Main time integration loop ---
 
     sample_idx = 0
 
@@ -185,19 +192,18 @@ def run_uniformE_example() -> None:
             traj_hist[sample_idx] = ions.z[tracer_indices]
             sample_idx += 1
 
-    # Final energy distribution (EEDF/IEDF)
+    # --- Final energy distribution (EEDF/IEDF) ---
 
     energy_centers, energy_pdf = diagnostics.compute_energy_distribution(
         ions, n_bins=100, e_max=None
     )
 
-    # Save results
+    # --- Save results ---
 
-    # Folder to save results into
     results_dir = Path(__file__).resolve().parent / "results"
     results_dir.mkdir(parents=True, exist_ok=True)
 
-    # Save time + temperature
+    # CSVs (optional, mostly for inspection)
     np.savetxt(
         results_dir / "time_temperature.csv",
         np.column_stack((time_hist, T_hist)),
@@ -207,7 +213,6 @@ def run_uniformE_example() -> None:
         fmt="%.8f",
     )
 
-    # Save drift velocity
     np.savetxt(
         results_dir / "drift_velocity.csv",
         np.column_stack((time_hist, drift_hist)),
@@ -217,7 +222,6 @@ def run_uniformE_example() -> None:
         fmt="%.8f",
     )
 
-    # Save density profile (each column is a spatial bin)
     np.savetxt(
         results_dir / "density_profile.csv",
         density_hist,
@@ -227,7 +231,6 @@ def run_uniformE_example() -> None:
         fmt="%.1f",
     )
 
-    # Save tracer trajectories
     np.savetxt(
         results_dir / "tracer_trajectories.csv",
         traj_hist,
@@ -237,7 +240,6 @@ def run_uniformE_example() -> None:
         fmt="%.4f",
     )
 
-    # Save final energy distribution (EEDF/IEDF)
     np.savetxt(
         results_dir / "energy_distribution.csv",
         np.column_stack((energy_centers, energy_pdf)),
@@ -247,8 +249,9 @@ def run_uniformE_example() -> None:
         fmt="%.6f",
     )
 
+    # NPZ bundle specific to this E+B example
     np.savez(
-        results_dir / "example_uniformE_results.npz",
+        results_dir / "uniformE_B_results.npz",
         time=time_hist,
         temperature=T_hist,
         drift_velocity=drift_hist,
@@ -262,4 +265,4 @@ def run_uniformE_example() -> None:
 
 
 if __name__ == "__main__":
-    run_uniformE_example()
+    run_uniformE_B_example()

@@ -251,6 +251,35 @@ class Species:
         # update particle count
         self.N = end
 
+    def remove_particles(self, indices: np.ndarray | int) -> None:
+        """
+        Remove particles at the specified indices.
+
+        Parameters
+        ----------
+        indices : np.ndarray | int
+            Indices of particles to remove.
+        """
+        # Copy the later particles to the positions of the removed ones
+        if isinstance(indices, int):
+            indices = np.array([indices])
+        for idx in sorted(indices):
+            # Move the last particle to the position of the removed one
+            self._copy(self.N - 1, idx)
+            self.N -= 1
+
+    def _copy(self, old_idx: int, new_idx: int):
+        """
+        Move a particle from old_idx to new_idx. This does not
+        change the total number of particles.
+        """
+        self.z[new_idx] = self.z[old_idx]
+        self.vx[new_idx] = self.vx[old_idx]
+        self.vy[new_idx] = self.vy[old_idx]
+        self.vz[new_idx] = self.vz[old_idx]
+        self.weight[new_idx] = self.weight[old_idx]
+        self.alive[new_idx] = self.alive[old_idx]
+
     def initialize_uniform(
         self,
         n: int,

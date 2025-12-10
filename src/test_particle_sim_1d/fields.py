@@ -35,9 +35,7 @@ from __future__ import annotations
 
 import numpy as np
 
-# ----------------------------------------------------------------------
 # Electric field definitions
-# ----------------------------------------------------------------------
 
 
 def E_uniform(z: np.ndarray, E0: float = 0.0, direction: str = "z") -> np.ndarray:
@@ -86,9 +84,7 @@ def Ez_from_grid(z: np.ndarray, z_grid: np.ndarray, E_grid: np.ndarray) -> np.nd
     return np.column_stack((np.zeros_like(Ez), np.zeros_like(Ez), Ez))
 
 
-# ----------------------------------------------------------------------
 # Magnetic field definitions
-# ----------------------------------------------------------------------
 
 
 def B_uniform(z: np.ndarray, B0: float = 0.0, direction: str = "z") -> np.ndarray:

@@ -1,9 +1,9 @@
 """
 tests/test_exb_drift.py
 
-Checks that a charged particle starting from rest in crossed E and B fields
-develops the correct ExB drift velocity over time and that gyration energy
-is conserved in the drift frame.
+Checks that a charged particle starting from rest in crossed E and B fields:
+- develops the correct ExB drift velocity over time
+- conserves gyration energy in the drift frame
 """
 
 from __future__ import annotations

@@ -1,10 +1,10 @@
 """
-plotting.py
+uniformE_plotting.py
 
-Combined loader + plotting for the example_uniformE simulation.
+Combined loader + plotting for the uniformE simulation.
 
 It:
-1. Loads example_uniformE_results.npz from the ../results directory.
+1. Loads uniformE_results.npz from the ../results directory.
 2. Generates:
    - Temperature history
    - Energy distribution
@@ -63,6 +63,7 @@ def plot_density_profile(z_centers, density_m3, time_label="", save_path=None):
     plt.ylabel("Density (m⁻³)")
     plt.grid(True)
     plt.legend(loc="upper right")
+    plt.ylim(bottom=0)
 
     if save_path is not None:
         plt.savefig(save_path, dpi=300, bbox_inches="tight")
@@ -104,24 +105,24 @@ def main():
     # Directory layout:
     # examples/
     #   example_uniformE/
-    #       example_uniformE.py
+    #       uniformE.py
     #       results/
-    #           example_uniformE_results.npz
+    #           uniformE_results.npz
     #       plotting/
-    #           plotting.py  <-- this file
-    base_dir = Path(__file__).resolve().parent  # .../example_uniformE/plotting
-    example_dir = base_dir.parent  # .../example_uniformE
+    #           uniformE_plotting.py  <-- this file
+    base_dir = Path(__file__).resolve().parent  # .../uniformE/plotting
+    example_dir = base_dir.parent  # .../uniformE
     results_dir = example_dir / "results"
 
     # Save PNGs under the existing 'plotting' folder
     plots_dir = base_dir
 
-    results_path = results_dir / "example_uniformE_results.npz"
+    results_path = results_dir / "uniformE_results.npz"
 
     if not results_path.is_file():
         msg = (
             f"Could not find results file at: {results_path}\n"
-            "Make sure you've run example_uniformE.py first."
+            "Make sure you've run uniformE.py first."
         )
         raise FileNotFoundError(msg)
 
@@ -130,7 +131,6 @@ def main():
 
     time = data["time"]
     temperature = data["temperature"]
-    # drift_vel = data["drift_velocity"]
     z_grid = data["z_grid"]  # bin edges
     density = data["density_profile"]  # shape (N_samples, N_bins)
     tracer_traj = data["tracer_trajectories"]
@@ -140,7 +140,6 @@ def main():
     # Compute bin centers from edges
     z_centers = 0.5 * (z_grid[:-1] + z_grid[1:])
 
-    # --- Make plots ---
     # 1. Temperature vs time
     plot_temperature_history(
         time,

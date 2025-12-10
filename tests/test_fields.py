@@ -16,9 +16,7 @@ import numpy as np
 
 from test_particle_sim_1d import fields
 
-# ----------------------------------------------------------------------
 # 1. Analytic equivalence for B_mirror
-# ----------------------------------------------------------------------
 
 
 def test_B_mirror_matches_analytic():
@@ -30,9 +28,7 @@ def test_B_mirror_matches_analytic():
     np.testing.assert_allclose(B_num[:, 2], B_expected, rtol=1e-12)
 
 
-# ----------------------------------------------------------------------
 # 2. Derivative (gradient) consistency
-# ----------------------------------------------------------------------
 
 
 def test_B_mirror_derivative_consistency():
@@ -48,9 +44,7 @@ def test_B_mirror_derivative_consistency():
     np.testing.assert_allclose(dBz_num[5:-5], dBz_analytic[5:-5], rtol=5e-3, atol=1e-4)
 
 
-# ----------------------------------------------------------------------
 # 3. Symmetry about z = 0
-# ----------------------------------------------------------------------
 
 
 def test_B_mirror_symmetry():
@@ -63,9 +57,7 @@ def test_B_mirror_symmetry():
     np.testing.assert_allclose(left, right, rtol=1e-10)
 
 
-# ----------------------------------------------------------------------
 # 4. Parameter-scaling behavior
-# ----------------------------------------------------------------------
 
 
 def test_B_mirror_scales_with_B0():
@@ -89,9 +81,7 @@ def test_B_mirror_scales_with_zmirror():
     assert B1[-1] > B2[-1]
 
 
-# ----------------------------------------------------------------------
 # 5. Direction tests for uniform fields
-# ----------------------------------------------------------------------
 
 
 def test_uniform_field_directions():
@@ -107,9 +97,7 @@ def test_uniform_field_directions():
             assert np.allclose(F[:, mask], 0.0)
 
 
-# ----------------------------------------------------------------------
 # 6. Vector magnitude checks
-# ----------------------------------------------------------------------
 
 
 def test_uniform_field_magnitude_constant():
@@ -120,9 +108,7 @@ def test_uniform_field_magnitude_constant():
     assert np.allclose(magnitudes, 10.0)
 
 
-# ----------------------------------------------------------------------
 # 7. Input type robustness
-# ----------------------------------------------------------------------
 
 
 def test_accepts_python_lists():
@@ -136,9 +122,7 @@ def test_accepts_python_lists():
     assert B.shape == (3, 3)
 
 
-# ----------------------------------------------------------------------
 # 8. Edge case: empty input
-# ----------------------------------------------------------------------
 
 
 def test_empty_input_returns_empty():

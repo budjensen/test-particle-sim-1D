@@ -16,6 +16,14 @@ compute_drift_velocity        : Calculate mean velocity vector.
 compute_density_profile       : Calculate number density on a 1D spatial grid.
 compute_temperature_profile   : Calculate temperature on a 1D spatial grid.
 compute_energy_distribution   : Calculate the Energy Distribution Function (IEDF/EEDF).
+
+References
+---------
+# The definitions used here follow standard kinetic theory:
+#   T = (m / 3 kB) <(v - <v>)^2>
+#   n(z) = N_bin / (A * Δz)
+# and construction of EEDFs via histograms of kinetic energy.
+# See e.g. Birdsall & Langdon (2004), Chen (2016).
 """
 
 from __future__ import annotations
