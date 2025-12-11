@@ -87,7 +87,7 @@ def run_magneticmirror_example() -> None:
     z_max = 0.2
 
     # Particles
-    n_particles = 20000
+    n_particles = 50000
     species_name = "proton"
 
     # Time stepping

@@ -61,7 +61,7 @@ def plot_density_profile(z_centers, density_m3, time_label="", save_path=None):
     plt.ylabel("Density (m⁻³)")
     plt.grid(True)
     plt.legend(loc="upper right")
-    plt.ylim(0, 5.0e5)
+    plt.ylim(0, 1.0e6)
 
     if save_path is not None:
         plt.savefig(save_path, dpi=300, bbox_inches="tight")

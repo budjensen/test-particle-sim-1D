@@ -48,7 +48,7 @@ def run_uniformE_B_example() -> None:
     z_max = 0.1
 
     # Particles
-    n_particles = 20000
+    n_particles = 50000
     species_name = "proton"
 
     # Time stepping
