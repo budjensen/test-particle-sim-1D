@@ -16,6 +16,7 @@ All plots include titles, axis labels with units, and legends.
 
 from __future__ import annotations
 
+from itertools import pairwise
 from pathlib import Path
 
 import matplotlib.pyplot as plt
@@ -61,7 +62,7 @@ def plot_density_profile(z_centers, density_m3, time_label="", save_path=None):
     plt.ylabel("Density (m⁻³)")
     plt.grid(True)
     plt.legend(loc="upper right")
-    plt.ylim(0, 3.0e5)
+    plt.ylim(0, 1.75e6)
 
     if save_path is not None:
         plt.savefig(save_path, dpi=300, bbox_inches="tight")
@@ -70,7 +71,7 @@ def plot_density_profile(z_centers, density_m3, time_label="", save_path=None):
 
 def plot_trajectory(time_s, trajectories, save_path=None):
     """
-    Plot tracer particle trajectories.
+    Plot tracer particle trajectories, hiding jumps from periodic wrapping.
 
     Parameters
     ----------
@@ -82,8 +83,34 @@ def plot_trajectory(time_s, trajectories, save_path=None):
     plt.figure(figsize=(7, 5))
 
     n_tracers = trajectories.shape[1]
+    t = time_s
+
+    # Estimate domain length from data and define a wrap threshold
+    L = trajectories.max() - trajectories.min()
+    jump_threshold = 0.5 * L
+
     for i in range(n_tracers):
-        plt.plot(time_s, trajectories[:, i], label=f"Tracer {i}", linewidth=1.5)
+        z = trajectories[:, i]
+
+        # Find indices where we should split the line
+        segment_starts = [0]
+        for k in range(1, len(z)):
+            if abs(z[k] - z[k - 1]) > jump_threshold:
+                segment_starts.append(k)
+        segment_starts.append(len(z))
+
+        first_segment = True
+
+        for start, end in pairwise(segment_starts):
+            if end - start < 2:
+                continue
+            plt.plot(
+                t[start:end],
+                z[start:end],
+                linewidth=1.5,
+                label=(f"Tracer {i}" if first_segment else None),
+            )
+            first_segment = False
 
     plt.title("Magnetic Mirror: Tracer Particle Trajectories")
     plt.xlabel("Time (s)")

@@ -83,7 +83,19 @@ def plot_trajectory(time_s, trajectories, save_path=None):
 
     n_tracers = trajectories.shape[1]
     for i in range(n_tracers):
-        plt.plot(time_s, trajectories[:, i], label=f"Tracer {i}", linewidth=1.5)
+        # plt.plot(time_s, trajectories[:, i], label=f"Tracer {i}", linewidth=1.5)
+        # Create fading alpha along the trajectory for tracer i
+        N = len(time_s)
+        alphas = np.linspace(0.1, 1.0, N)  # fade: early → faint, late → strong
+
+        for k in range(N - 1):
+            plt.plot(
+                time_s[k : k + 2],
+                trajectories[k : k + 2, i],
+                color="tab:blue",
+                alpha=alphas[k],
+                linewidth=1.5,
+            )
 
     plt.title("Tracer Particle Trajectories")
     plt.xlabel("Time (s)")

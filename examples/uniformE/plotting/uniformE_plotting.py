@@ -16,6 +16,7 @@ All plots include titles, axis labels with units, and legends.
 
 from __future__ import annotations
 
+from itertools import pairwise
 from pathlib import Path
 
 import matplotlib.pyplot as plt
@@ -72,20 +73,50 @@ def plot_density_profile(z_centers, density_m3, time_label="", save_path=None):
 
 def plot_trajectory(time_s, trajectories, save_path=None):
     """
-    Plot tracer particle trajectories.
-
-    Parameters
-    ----------
-    time_s : np.ndarray
-        Time array of shape (N_time,).
-    trajectories : np.ndarray
-        z positions of tracers, shape (N_time, N_tracers).
+    Plot tracer particle trajectories with fading (light→dark blue)
+    and hide jumps caused by periodic wrapping.
     """
     plt.figure(figsize=(7, 5))
 
     n_tracers = trajectories.shape[1]
+    N = len(time_s)
+
+    # Fading alpha values from light → dark blue
+    alphas = np.linspace(0.1, 1.0, N)
+
+    # Estimate domain length to detect wrap jumps
+    L = trajectories.max() - trajectories.min()
+    jump_threshold = 0.5 * L
+
     for i in range(n_tracers):
-        plt.plot(time_s, trajectories[:, i], label=f"Tracer {i}", linewidth=1.5)
+        z = trajectories[:, i]
+        t = time_s
+
+        # Identify continuous segments (no wrap jumps)
+        segment_starts = [0]
+        for k in range(1, N):
+            if abs(z[k] - z[k - 1]) > jump_threshold:
+                segment_starts.append(k)
+        segment_starts.append(N)
+
+        # Plot segments with fading
+        first_segment = True
+        for start, end in pairwise(segment_starts):
+            if end - start < 2:
+                continue
+
+            # Draw each small segment with fading alpha
+            for k in range(start, end - 1):
+                plt.plot(
+                    t[k : k + 2],
+                    z[k : k + 2],
+                    color="tab:blue",
+                    alpha=alphas[k],  # ← fade light → dark
+                    linewidth=1.5,
+                    label=(f"Tracer {i}" if first_segment and k == start else None),
+                )
+
+            first_segment = False
 
     plt.title("Tracer Particle Trajectories")
     plt.xlabel("Time (s)")

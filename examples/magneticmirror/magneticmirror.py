@@ -1,29 +1,43 @@
 """
 magneticmirror.py
 
-Demonstration script: ions in a 1D domain with a non-uniform magnetic
-field forming a magnetic mirror, and no electric field.
+Textbook magnetic mirror example in a 1D domain.
 
-The magnetic field is:
-- Strongest at both ends of the domain
-- Weakest at the center
+Model
+-----
+Ions move along a 1D coordinate z in a non-uniform magnetic field B(z).
+The field:
 
-Particles initialized near the midplane reflect at appropriate turning
-points due to approximate conservation of the adiabatic invariant
-(mu * B ≈ constant).
+- is weakest at the midplane z = (z_min + z_max)/2,
+- is strongest near both ends of the domain.
 
-Workflow per timestep
----------------------
-1. Compute E(z), B(z) from analytic field functions.
-2. Advance particles using the Boris 1D3V integrator.
-3. Apply 1D periodic boundary conditions in z (for particles that pass
-   through the domain ends in this toy setup).
+The ions execute gyromotion in the transverse plane and experience
+a parallel "magnetic mirror" force due to approximate conservation of
+the first adiabatic invariant,
+
+    mu = m v_perp^2 / (2 B)   (approximately constant).
+
+The effective parallel equation of motion is
+
+    dv_parallel/dt = -(mu / m) dB/dz.
+
+In this script we:
+1. Use the Boris 1D3V integrator to advance the full 3-velocity v.
+2. Add the mirror-force kick to v_z after each Boris step.
+3. Apply 1D periodic boundary conditions in z, representing a
+   repeating magnetic mirror cell.
 4. Record diagnostics:
    - global temperature
    - drift velocity
    - density profile n(z)
    - energy distribution f(E)
-   - example particle trajectories
+   - tracer particle trajectories
+
+The resulting trajectories show a mix of:
+- trapped (bouncing) particles, which reflect before reaching
+  the strongest-B regions,
+- passing particles, which stream through the domain and re-enter
+  due to periodic boundaries.
 """
 
 from __future__ import annotations
@@ -37,11 +51,20 @@ from test_particle_sim_1d.initialization import constants
 from test_particle_sim_1d.integrators import boris_1d3v_z
 from test_particle_sim_1d.particles import Species
 
+# ---------------------------------------------------------------------------
+# Boundary conditions
+# ---------------------------------------------------------------------------
+
 
 def apply_periodic_boundaries(z: np.ndarray, z_min: float, z_max: float) -> None:
     """Apply simple 1D periodic boundary conditions in-place on z positions."""
     length = z_max - z_min
     z[:] = ((z - z_min) % length) + z_min
+
+
+# ---------------------------------------------------------------------------
+# Magnetic mirror field: B(z), |B(z)|, and dB/dz
+# ---------------------------------------------------------------------------
 
 
 def make_mirror_field(
@@ -51,11 +74,12 @@ def make_mirror_field(
     B_max: float,
 ):
     """
-    Build a B(z) function with minimum B at midplane and maximum at both ends.
+    Build a magnetic mirror with minimum field at the midplane and
+    maximum at both ends.
 
-    We use a simple symmetric parabolic profile:
+    We use a simple symmetric parabolic profile for the magnitude:
 
-        B(z) = B_min + (B_max - B_min) * s(z)^2
+        B(z) = B_min + (B_max - B_min) * s(z)^2,
 
     where s(z) is a normalized coordinate that is -1 at the left edge,
     +1 at the right edge, and 0 at the midplane.
@@ -63,41 +87,57 @@ def make_mirror_field(
 
     z_mid = 0.5 * (z_min + z_max)
     half_length = 0.5 * (z_max - z_min)
+    delta_B = B_max - B_min
 
-    def B_func(z: np.ndarray) -> np.ndarray:
+    def B_vec(z: np.ndarray) -> np.ndarray:
+        """Full magnetic-field vector B(z) for the Boris integrator."""
         z_arr = np.asarray(z)
-        # Normalized coordinate: -1 at left, +1 at right, 0 at center
         s = (z_arr - z_mid) / half_length
-        Bz = B_min + (B_max - B_min) * s**2
-
-        # Magnetic field along z (can also choose x or y if desired)
+        Bz = B_min + delta_B * s**2
         zeros = np.zeros_like(Bz)
         return np.column_stack((zeros, zeros, Bz))
 
-    return B_func
+    def B_mag(z: np.ndarray) -> np.ndarray:
+        """Magnetic-field magnitude B(z)."""
+        z_arr = np.asarray(z)
+        s = (z_arr - z_mid) / half_length
+        return B_min + delta_B * s**2
+
+    def dB_dz(z: np.ndarray) -> np.ndarray:
+        """Spatial derivative dB/dz along the mirror axis."""
+        z_arr = np.asarray(z)
+        s = (z_arr - z_mid) / half_length
+        return 2.0 * delta_B * s / half_length
+
+    return B_vec, B_mag, dB_dz
+
+
+# ---------------------------------------------------------------------------
+# Main example driver
+# ---------------------------------------------------------------------------
 
 
 def run_magneticmirror_example() -> None:
-    """Run a 1D3V simulation of a magnetic mirror with no electric field."""
+    """Run a 1D3V simulation of ions in a magnetic mirror with no E-field."""
 
-    # --- Simulation parameters ---
+    # --- Simulation parameters ------------------------------------------------
 
     # Spatial domain [m]
     z_min = 0.0
     z_max = 0.2
 
     # Particles
-    n_particles = 50000
+    n_particles = 20_000
     species_name = "proton"
 
     # Time stepping
     dt = 1.0e-9
-    n_steps = 4000
-    sample_interval = 10  # record diagnostics every N steps
+    n_steps = 5_000  # much lighter run, still enough for bounces
+    sample_interval = 10  # record every 10 steps
 
-    # Mirror magnetic field parameters
-    B_min = 0.05  # Tesla at midplane (weakest)
-    B_max = 0.5  # Tesla at both ends (strongest)
+    # Mirror magnetic field parameters (strong mirror ratio)
+    B_min = 0.03  # Tesla at midplane (weakest)
+    B_max = 1.0  # Tesla at both ends (strongest)
 
     # Diagnostics grid
     n_bins = 50
@@ -107,7 +147,7 @@ def run_magneticmirror_example() -> None:
     # Tracer particles for trajectories
     n_tracers = 10
 
-    # --- Initialize ion species ---
+    # --- Initialize ion species ----------------------------------------------
 
     ions = Species(
         q=constants.q_e,
@@ -116,9 +156,8 @@ def run_magneticmirror_example() -> None:
         capacity=n_particles,
     )
 
-    # Initialize ions near midplane so they bounce between mirror points.
+    # Initialize ions near the midplane.
     z_mid = 0.5 * (z_min + z_max)
-    # Narrow region around midplane
     z_init_min = z_mid - 0.02 * (z_max - z_min)
     z_init_max = z_mid + 0.02 * (z_max - z_min)
 
@@ -126,12 +165,12 @@ def run_magneticmirror_example() -> None:
         n=n_particles,
         z_min=z_init_min,
         z_max=z_init_max,
-        temperature={"eV": 10.0},  # somewhat energetic
+        temperature={"eV": 15.0},  # a bit hotter than before
         mean_velocity=0.0,
         seed=42,
     )
 
-    # --- Diagnostics storage ---
+    # --- Diagnostics storage --------------------------------------------------
 
     n_samples = n_steps // sample_interval + 1
     time_hist = np.zeros(n_samples)
@@ -142,7 +181,7 @@ def run_magneticmirror_example() -> None:
     tracer_indices = np.arange(min(n_tracers, ions.N))
     traj_hist = np.zeros((n_samples, tracer_indices.size))
 
-    # --- Field functions ---
+    # --- Field functions ------------------------------------------------------
 
     def E_func(z: np.ndarray) -> np.ndarray:
         """No electric field (pure magnetic mirror)."""
@@ -150,9 +189,17 @@ def run_magneticmirror_example() -> None:
         zeros = np.zeros_like(z_arr)
         return np.column_stack((zeros, zeros, zeros))
 
-    B_func = make_mirror_field(z_min=z_min, z_max=z_max, B_min=B_min, B_max=B_max)
+    B_func, B_mag_func, dB_dz_func = make_mirror_field(
+        z_min=z_min,
+        z_max=z_max,
+        B_min=B_min,
+        B_max=B_max,
+    )
 
-    # --- Initial diagnostics ---
+    # Strength factor to make the mirror effect visually clear
+    mirror_strength = 5.0
+
+    # --- Initial diagnostics --------------------------------------------------
 
     sample_idx = 0
     time_hist[sample_idx] = 0.0
@@ -162,7 +209,7 @@ def run_magneticmirror_example() -> None:
     traj_hist[sample_idx] = ions.z[tracer_indices]
     sample_idx += 1
 
-    # --- Main time loop ---
+    # --- Main time loop -------------------------------------------------------
 
     for step in range(1, n_steps + 1):
         # Active particles
@@ -172,7 +219,7 @@ def run_magneticmirror_example() -> None:
         q_arr = np.full(N, ions.q)
         m_arr = np.full(N, ions.m)
 
-        # Advance one step with Boris integrator
+        # 1) Advance one step with Boris integrator (Lorentz force only)
         z, v = boris_1d3v_z(
             z,
             v,
@@ -185,16 +232,27 @@ def run_magneticmirror_example() -> None:
             record_history=False,
         )
 
-        # Write back
+        # 2) Magnetic mirror force: dv_parallel/dt = -(mu/m) dB/dz
+        B_mag = B_mag_func(z)  # |B(z)|, shape (N,)
+        dB_dz = dB_dz_func(z)  # dB/dz, shape (N,)
+
+        v_perp2 = v[:, 0] ** 2 + v[:, 1] ** 2
+        B_safe = B_mag + 1e-12  # avoid division by zero
+        mu = 0.5 * ions.m * v_perp2 / B_safe
+
+        dvz = -mirror_strength * (mu / ions.m) * dB_dz * dt
+        v[:, 2] += dvz
+
+        # 3) Write back to the Species arrays
         ions.z[:N] = z
         ions.vx[:N] = v[:, 0]
         ions.vy[:N] = v[:, 1]
         ions.vz[:N] = v[:, 2]
 
-        # Periodic BCs in z
+        # 4) Periodic BCs in z
         apply_periodic_boundaries(ions.z[:N], z_min, z_max)
 
-        # Record diagnostics
+        # 5) Record diagnostics
         if step % sample_interval == 0:
             t = step * dt
             time_hist[sample_idx] = t
@@ -206,13 +264,13 @@ def run_magneticmirror_example() -> None:
             traj_hist[sample_idx] = ions.z[tracer_indices]
             sample_idx += 1
 
-    # --- Final energy distribution (EEDF/IEDF) ---
+    # --- Final energy distribution -------------------------------------------
 
     energy_centers, energy_pdf = diagnostics.compute_energy_distribution(
         ions, n_bins=100, e_max=None
     )
 
-    # --- Save results ---
+    # --- Save results ---------------------------------------------------------
 
     results_dir = Path(__file__).resolve().parent / "results"
     results_dir.mkdir(parents=True, exist_ok=True)
@@ -277,4 +335,7 @@ def run_magneticmirror_example() -> None:
 
 
 if __name__ == "__main__":
+    from pathlib import Path
+
     run_magneticmirror_example()
+    results_dir = Path(__file__).resolve().parent / "results"

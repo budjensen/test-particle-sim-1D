@@ -52,7 +52,7 @@ def run_uniformE_example() -> None:
 
     # Time stepping
     dt = 1.0e-9
-    n_steps = 2000
+    n_steps = 5000
     sample_interval = 10  # record diagnostics every N steps
 
     # Fields: uniform Ez, no magnetic field
