@@ -77,28 +77,25 @@ Ions traversing a **Child-Langmuir sheath** near a plasma-wall boundary with abs
 
 ### Basic Workflow
 
-1. **Navigate to example directory:**
+1. **Activate the examples dependency group:**
+    ```bash
+    uv sync --group examples
+    ```
+
+1. **Navigate to desired example and run the simulation:**
    ```bash
    cd examples/uniformE
-   ```
-
-2. **Run the simulation:**
-   ```bash
    uv run uniformE.py
    ```
-   or
+
+1. **Generate plots:**
    ```bash
-   python uniformE.py
+   uv run plotting/uniformE_plotting.py
    ```
 
-3. **Generate plots:**
-   ```bash
-   python plotting/uniformE_plotting.py
-   ```
-
-4. **View results:**
-   Output files are saved in `results/` directory
-   and plots in `plotting`
+1. **View results:**
+   Output files are saved in `results/`
+   and plots in `plotting/`
 
 ---
 

@@ -13,7 +13,7 @@ This repository includes:
 - A full MCC collision engine
 - A modular particle pusher
 - Diagnostic tools
-- Example simulations (`example_uniformE`, etc.)
+- Example simulations (`examples/uniformE`, etc.)
 - Automated plotting utilities
 - Pre-commit formatting, linting, and testing
 - A growing test suite validating physics (isotropy, thermalization, distribution convergence, etc.)

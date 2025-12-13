@@ -31,6 +31,9 @@ docs = [
     "sphinx-markdown-builder",
     "sphinx_copybutton",
 ]
+examples = [
+    "matplotlib",
+]
 
 [build-system]
 requires = ["hatchling"]
