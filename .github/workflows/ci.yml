@@ -45,7 +45,7 @@ jobs:
           python-version: ${{ matrix.python-version }}
 
       - name: Download uv
-        uses: astral-sh/setup-uv@v7.1
+        uses: astral-sh/setup-uv@v7.2
 
       - name: Setup dev environment to get nox
         run: uv sync --group dev
